@@ -169,6 +169,55 @@ static void check_search_and_sort()
     assert(screen.pending_search);
 }
 
+static void check_news_and_new_apps()
+{
+    // The feed: items this version can read, twenty at most; not a feed at all is an error.
+    std::vector<store::catalog::News> news;
+    std::string error;
+    assert(store::catalog::parse_news(
+        R"({"schema":3,"news":[{"id":"2026-10-11-a","date":"2026-10-11T10:00:00Z","title":"Hello",)"
+        R"("body":"First.\n\nSecond."},{"id":"x","title":"no date"},7]})",
+        news, error));
+    assert(news.size() == 1 && news[0].id == "2026-10-11-a" && news[0].body == "First.\n\nSecond.");
+    assert(!store::catalog::parse_news(R"({"schema":3,"apps":[]})", news, error));
+    assert(!store::catalog::parse_news(R"({"schema":2,"news":[]})", news, error));
+    assert(store::catalog::parse_news(R"({"schema":3,"news":[]})", news, error) && news.empty());
+    // An item is announced until its room has been opened; that is remembered in the settings.
+    store::Screen screen;
+    screen.set_news({{"2026-10-11-a", "2026-10-11T10:00:00Z", "Hello", "First."}});
+    assert(screen.settings().news_seen.empty() && !screen.settings_changed);
+    screen.open_panel(3);
+    assert(screen.settings().news_seen == "2026-10-11-a" && screen.settings_changed);
+    const auto kept = store::parse_settings(store::format_settings(screen.settings()));
+    assert(kept.news_seen == "2026-10-11-a");
+    // Discover: apps the catalog listed in the last thirty days have their own shelf, ahead of
+    // the others it changed last. Without those dates there is the one shelf, as before.
+    store::App fresh, old, undated;
+    fresh.title_id = "PPSA99001";
+    fresh.name = "Fresh";
+    fresh.added = "2026-10-05T00:00:00Z";
+    fresh.updated = "2026-10-06T00:00:00Z";
+    old.title_id = "PPSA99002";
+    old.name = "Old";
+    old.added = "2026-07-01T00:00:00Z";
+    old.updated = "2026-10-10T00:00:00Z";
+    undated.title_id = "PPSA99003";
+    undated.name = "Undated";
+    undated.updated = "2026-09-01T00:00:00Z";
+    fresh.kind = old.kind = undated.kind = "app";
+    screen.set_catalog({old, undated, fresh}, "dated");
+    auto shown = screen.artwork();
+    assert(shown.size() >= 3 && shown[0] == fresh.title_id && shown[1] == old.title_id &&
+           shown[2] == undated.title_id);
+    fresh.added.clear();
+    old.added.clear();
+    store::Screen plain; // a new screen: the focus is on the first tile again
+    plain.set_catalog({old, undated, fresh}, "undated");
+    shown = plain.artwork();
+    assert(shown.size() >= 3 && shown[0] == old.title_id && shown[1] == fresh.title_id &&
+           shown[2] == undated.title_id);
+}
+
 static void check_installed_sections()
 {
     store::Screen screen;
@@ -397,6 +446,7 @@ int main(int argc, char **argv)
 {
     check_artwork_requests();
     check_search_and_sort();
+    check_news_and_new_apps();
     check_installed_sections();
     check_hold_to_uninstall();
     check_keyboard_keys();
@@ -479,6 +529,10 @@ int main(int argc, char **argv)
                                 0, entry.released, entry.updated});
                 apps.back().available_version = entry.content_version;
                 apps.back().size = entry.size;
+                apps.back().added = entry.added;
+                // A preview of the shelves with a catalog that doesn't date its apps yet.
+                if (argc == 5 && std::string(argv[4]) == "whats-new" && entry.added.empty())
+                    apps.back().added = entry.released;
             }
             screen.set_catalog(std::move(apps), "Verified catalog");
             store::catalog::Icons icons(std::string(argv[3]) + "/icons");
@@ -633,6 +687,23 @@ int main(int argc, char **argv)
             }
             else if (mode == "search")
                 screen.set_query("radio");
+            else if (mode == "news")
+            {
+                screen.set_news(
+                    {{"2026-10-11-store-060", "2026-10-11T09:00:00Z", "ProsperoStore 1.000.060",
+                      "Developer pages, a News room and a shelf for apps new to the catalog.\n\n"
+                      "Open an app and press R3 to see everything else its developer made."},
+                     {"2026-10-08-mirror", "2026-10-08T18:00:00Z", "The catalog has a mirror",
+                      "When homebrew.page can't be reached, the store now reads the same signed "
+                      "catalog from its mirror."}});
+                screen.open_panel(3);
+                settle(60);
+            }
+            else if (mode == "whats-new")
+            {
+                screen.update(down, 1.0f / 60.0f, feedback);
+                settle(40);
+            }
             else if (mode == "developer")
             {
                 // The page of the developer of the first app whose details are here.
