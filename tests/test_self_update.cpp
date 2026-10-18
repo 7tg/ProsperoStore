@@ -120,10 +120,10 @@ struct Console
         sandboxes = root + "/sandbox";
         sandbox = sandboxes + "/" + title + "_000";
         registered = root + "/user";
-        for (const auto &folder : {drive, drive + "/homebrew", target, target + "/sce_sys",
-                                   target + "/assets", sandboxes, sandbox,
-                                   sandbox + "/app0", sandbox + "/data", registered,
-                                   registered + "/appmeta", registered + "/appmeta/" + title})
+        for (const auto &folder :
+             {drive, drive + "/homebrew", target, target + "/sce_sys", target + "/assets",
+              sandboxes, sandbox, sandbox + "/app0", sandbox + "/data", registered,
+              registered + "/appmeta", registered + "/appmeta/" + title})
             CHECK(mkdir(folder.c_str(), 0755) == 0);
         write_file(target + "/eboot.bin", "old program");
         write_file(target + "/sce_sys/param.json", param_json(title, "01.000.000"));

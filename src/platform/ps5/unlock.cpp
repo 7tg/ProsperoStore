@@ -1,4 +1,5 @@
 // ProsperoStore - Ways out of the sandbox, tried in an order and remembered.
+// Copyright (C) 2026 BlackBearReloaded
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "unlock.hpp"
 

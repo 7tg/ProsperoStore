@@ -169,7 +169,8 @@ int main()
     // Status: 0 ok, 1 invalid request, 3 unsupported, 5 unavailable, 6 prepare failed,
     // 7 apply failed, 9 transport error (no answer from Lapy), 11 timeout.
     store::diag::trace("elevation (Lapy): status %u via %s after %lld ms",
-                       static_cast<unsigned>(elevation_status), store::ps5::unlock_route(), since_start());
+                       static_cast<unsigned>(elevation_status), store::ps5::unlock_route(),
+                       since_start());
     store::diag::trace("elevation stopped at: %s, value %d (0x%08x)", elevation::step(),
                        elevation::step_code(), static_cast<unsigned>(elevation::step_code()));
     store::diag::set_enabled(debug_wanted());
