@@ -26,8 +26,7 @@ bool update_available(std::string_view installed, std::string_view available);
 // site. Both are signed with the same keys; each has its own manifest, because the icon
 // addresses inside the files name the place they are served from.
 inline constexpr std::string_view kApi = "https://prosperostore.net/api/v1/";
-inline constexpr std::string_view kApiMirror =
-    "https://darkxex.github.io/ps5-homebrew-catalog/";
+inline constexpr std::string_view kApiMirror = "https://darkxex.github.io/ps5-homebrew-catalog/";
 bool api_url(std::string_view url);
 // One of the official catalog's own places: prosperostore.net, or its mirror (one repository's
 // pages on a host shared with everyone's, so the path is part of its identity).

@@ -36,13 +36,11 @@ int main()
     }
     assert(!normalize_api("https://dev.example/" + std::string(512, 'a'), base));
     // The mirror is one path on a shared host: nothing else on that host is the catalog.
-    assert(
-        official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/index.json"));
+    assert(official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/index.json"));
     assert(official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/icons/"
                         "PPSA99000.png?v=0f"));
     for (const char *url :
-         {"https://darkxex.github.io/",
-          "https://darkxex.github.io/other-repo/api/v1/index.json",
+         {"https://darkxex.github.io/", "https://darkxex.github.io/other-repo/api/v1/index.json",
           "https://someone-else.github.io/ps5-homebrew-catalog/api/v1/index.json",
           "https://darkxex.github.io/ps5-homebrew-catalog/../x/index.json",
           "https://darkxex.github.io/ps5-homebrew-catalog/%2e%2e/x",
