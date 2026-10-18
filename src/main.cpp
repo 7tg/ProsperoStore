@@ -29,7 +29,7 @@
 #include "platform/ps5/keyboard.hpp"
 #include "platform/ps5/ime_abi.hpp"
 #include "platform/ps5/system.hpp"
-#include "../examples/sandbox-elevation/elevation.hpp"
+#include "platform/ps5/unlock.hpp"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -138,7 +138,7 @@ int main()
 #ifdef STORE_SANDBOX_CONTROL
     const auto elevation_status = elevation::Status::unavailable;
 #else
-    const auto elevation_status = elevation::request(elevation::Capability::filesystem);
+    const auto elevation_status = store::ps5::unlock_filesystem();
 #endif
     constexpr const char *storage_root = "/data/prosperostore";
     const bool elevated = elevation_status == elevation::Status::ok;
@@ -162,14 +162,14 @@ int main()
     sys::log("[STORE] run start token=%s", run_token.c_str());
 #endif
     sys::log("[STORE] elevation status=%u path=%s at_ms=%lld",
-             static_cast<unsigned>(elevation_status), elevation::path(), since_start());
+             static_cast<unsigned>(elevation_status), store::ps5::unlock_route(), since_start());
     const int transport = store::net::start_transport(elevation_status == elevation::Status::ok);
     sys::log("[STORE] transport startup rc=0x%08x", static_cast<unsigned>(transport));
 #ifdef STORE_DEBUG_TRACE
     // Status: 0 ok, 1 invalid request, 3 unsupported, 5 unavailable, 6 prepare failed,
     // 7 apply failed, 9 transport error (no answer from Lapy), 11 timeout.
     store::diag::trace("elevation (Lapy): status %u via %s after %lld ms",
-                       static_cast<unsigned>(elevation_status), elevation::path(), since_start());
+                       static_cast<unsigned>(elevation_status), store::ps5::unlock_route(), since_start());
     store::diag::trace("elevation stopped at: %s, value %d (0x%08x)", elevation::step(),
                        elevation::step_code(), static_cast<unsigned>(elevation::step_code()));
     store::diag::set_enabled(debug_wanted());
