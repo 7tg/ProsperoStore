@@ -13,7 +13,7 @@ The CI runs `LINT_SKIP_TIDY=1 make lint` (`tools/lint.sh`). Run `LINT_SKIP_TIDY=
 - **Header on every source file:** the first 20 lines of each `.c .cc .cpp .h .hpp .ld .py .ps1 .sh .yml .yaml`, `Makefile`, `.clang-format`, `.clang-tidy` and `.env.example` must contain both `Copyright (C) 2026 BlackBearReloaded` and `SPDX-License-Identifier: GPL-3.0-or-later`. New files need them. `third_party/` and `src/third_party/` are exempt.
 - **No C# files:** `.cs` and `.csproj` fail the lint.
 - **`param.json`:** `titleId` is `PPSA` plus five digits; `contentVersion` is `NN.NNN.NNN`; `masterVersion` is `NN.NN`; `downloadDataSize` is a non-negative integer; `titleName` of the default language is not empty.
-- **No local paths or personal names:** `C:\Users\`, `/home/denis`, `/mnt/c/Users/denis` and `Denis` anywhere in tracked files fail the lint.
+- **No local paths or personal names:** a Windows user path, a WSL `/mnt/c/Users/...` path, a `/home/<name>` path of the original author or that author's name in any tracked file fails the lint. The exact patterns are in `tools/lint.sh`; do not copy them into other files, since the check would match them there. Use placeholders such as `<user>` in examples.
 - **Whitespace:** `git diff --check` must be clean (no trailing whitespace).
 - **Shell scripts:** every `tools/*.sh` must pass `bash -n`. `tools/validate-assets.sh` also runs.
 - **Static analysis:** `tools/run_clang_tidy.sh` runs only without `LINT_SKIP_TIDY=1`. The CI skips it.
