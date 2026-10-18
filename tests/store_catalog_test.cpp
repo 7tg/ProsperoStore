@@ -35,12 +35,19 @@ int main()
         assert(base == kDefaultApi);
     }
     assert(!normalize_api("https://dev.example/" + std::string(512, 'a'), base));
-    // The catalog's one home; no other host is the official catalog.
-    assert(official_url("https://prosperostore.net/api/v1/index.json"));
-    assert(official_url("https://prosperostore.net/api/v1/icons/PPSA99000.png?v=0f"));
-    for (const char *url : {"https://darkxex.github.io/ps5-homebrew-catalog/api/v1/index.json",
-                            "https://prosperostore.net.evil.example/api/v1/index.json",
-                            "https://old-catalog.example/api/v1/index.json"})
+    // The mirror is one path on a shared host: nothing else on that host is the catalog.
+    assert(
+        official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/index.json"));
+    assert(official_url("https://darkxex.github.io/ps5-homebrew-catalog/api/v1/icons/"
+                        "PPSA99000.png?v=0f"));
+    for (const char *url :
+         {"https://darkxex.github.io/",
+          "https://darkxex.github.io/other-repo/api/v1/index.json",
+          "https://someone-else.github.io/ps5-homebrew-catalog/api/v1/index.json",
+          "https://darkxex.github.io/ps5-homebrew-catalog/../x/index.json",
+          "https://darkxex.github.io/ps5-homebrew-catalog/%2e%2e/x",
+          "https://darkxex.github.io.evil.example/ps5-homebrew-catalog/a",
+          "http://darkxex.github.io/ps5-homebrew-catalog/api/v1/index.json"})
         assert(!official_url(url));
     assert(artifact_url("https://github.com/owner/repo/releases/download/v1/a.zip"));
     assert(!artifact_url("https://release-assets.githubusercontent.com/a"));

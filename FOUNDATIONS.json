@@ -106,7 +106,7 @@
       "examples/update-check/sce_sys/param.json": "184e3ca752c8c81c7b869d20ad0d54c3897b1670fee64fc5672465b522c6da81",
       "examples/update-check/src/main.cpp": "f29c5abbe5e3403c334e7da5b5b2fe932eddbfe30571567e31d89f435251369b",
       "examples/update-check/update_check.c": "32cc2d10e56987b62546bf74133fedabfc3a8de81ee59eb68278c5e50e1ee3d8",
-      "examples/update-check/update_check.h": "a4475460637fb386c2a0c7aeb0cee2d6186dffec892414755cd44366edc580db",
+      "examples/update-check/update_check.h": "fc624800783f9717beb515a5278f3b6063898840949164be49fccf1051fcd247",
       "runtime/README.md": "7e3742e337c11a892b451bb8ce8ad4dc9d70b90271ddd9be731152a40fb5657b",
       "runtime/libc.prx.sha256": "087f9423317dd831939ab74e0e0168c91f2685d44bf616d8df72e298beeff17e",
       "sce_sys/background-source.png": "66876e6de050ffe58f73db5ab61358882c46d64cea165adfb361f7ad2e478598",

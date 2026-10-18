@@ -22,10 +22,15 @@ constexpr std::uint64_t kArtifactLimit = 2ULL * 1024 * 1024 * 1024;
 bool title_id(std::string_view value);
 bool version(std::string_view value);
 bool update_available(std::string_view installed, std::string_view available);
-// The official catalog's one home: prosperostore.net, served by GitHub Pages.
+// The catalog is published twice: on its own site, and as a mirror for networks that block that
+// site. Both are signed with the same keys; each has its own manifest, because the icon
+// addresses inside the files name the place they are served from.
 inline constexpr std::string_view kApi = "https://prosperostore.net/api/v1/";
+inline constexpr std::string_view kApiMirror =
+    "https://darkxex.github.io/ps5-homebrew-catalog/";
 bool api_url(std::string_view url);
-// The official catalog's own place: prosperostore.net.
+// One of the official catalog's own places: prosperostore.net, or its mirror (one repository's
+// pages on a host shared with everyone's, so the path is part of its identity).
 bool official_url(std::string_view url);
 inline constexpr const char *kDefaultApi = "https://prosperostore.net/api/v1/";
 // Empty input restores the official API; otherwise require an HTTPS directory URL.
