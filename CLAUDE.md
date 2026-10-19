@@ -5,6 +5,12 @@
 - Commit and push straight to `main`. No branches or pull requests.
 - Never add Claude as a collaborator: no `Co-Authored-By` trailer, no "Generated with Claude" line, in commits, tags, or PR text.
 
+## Verifying a change
+
+- Do not build or run anything on the PC to check a change: no host renderer (`tools/store-host.sh`), no host tests (`tools/store-test.sh`, `make test`), no compiling a piece of the app with the host compiler. The CI runs the host tests.
+- The app is verified on the PS5. Build it for the console with `make app`, or with `make deploy` when asked (`PS5_HOST` is the console's address), and then wait for the user to try it and say what they see. Do not call a change done on the strength of a PC check.
+- Layout is worked out from the code's own numbers (positions, sizes, the fonts' measures), not by rendering it on the PC.
+
 ## Lint
 
 The CI runs `LINT_SKIP_TIDY=1 make lint` (`tools/lint.sh`). Run `LINT_SKIP_TIDY=1 bash tools/lint.sh` before every commit; it must exit 0. A failed lint also fails the build that publishes a release.
