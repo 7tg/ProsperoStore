@@ -13,6 +13,7 @@
 | [Microsoft DirectXTex](https://github.com/microsoft/DirectXTex) | `texconv` presentation-image preparation |
 | [FFmpeg](https://ffmpeg.org/) | Developer-supplied selection-audio preparation |
 | [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus) | Directory-style deployment and hardware validation |
+| [Noto Sans CJK JP](https://github.com/notofonts/noto-cjk) | The store's Japanese faces, baked from the Regular, Medium and Bold weights (SIL OFL 1.1) |
 | [ArkSama/PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon) | Original Lapy project and owned-root design |
 | [mpereiraesaa/PS5-Lapy-JB-Daemon](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon) | Exact-title one-shot helper and cooperative elevation protocol |
 

@@ -21,6 +21,10 @@ bool hide_splash_screen();
 
 void sleep_us(std::uint32_t microseconds);
 
+// The language the console is set to (SCE_SYSTEM_SERVICE_PARAM_ID_LANG: 0 Japanese, 1 American
+// English, 2 French, 3 Spanish ...), or 1 when it cannot be read.
+int language_id();
+
 // Never returns: keeps the title alive until the shell closes it. Returning
 // from main or calling exit() is not safe for a native title.
 [[noreturn]] void park();

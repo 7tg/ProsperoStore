@@ -8,6 +8,11 @@ build="$root/build/store-tests"
 mkdir -p "$build"
 python3 "$root/tools/store-smoke.py" --self-test
 flags=(-g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+python3 "$root/tools/check-i18n.py"
+clang++ -std=c++20 "${flags[@]}" -Wall -Wextra -Wpedantic -Werror -I"$root/src" \
+    "$root/tests/store_i18n_test.cpp" "$root/src/core/i18n.cpp" "$root/src/core/i18n_strings.cpp" \
+    -o "$build/i18n-test"
+ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$build/i18n-test"
 clang++ -std=c++20 "${flags[@]}" -Wall -Wextra -Wpedantic -Werror -I"$root/src" \
     "$root/tests/store_locations_test.cpp" "$root/src/system/locations.cpp" -o "$build/locations-test"
 ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$build/locations-test"
@@ -150,6 +155,7 @@ clang++ -std=c++20 "${flags[@]}" -Wall -Wextra -Wpedantic -Werror -I"$root/src" 
     "$root/src/core/qr.cpp" \
     "$root/src/catalog/icons.cpp" "$root/src/catalog/catalog.cpp" \
     "$root/src/core/image.cpp" "$root/src/core/save_file.cpp" "$root/host/platform_host.cpp" \
+    "$root/src/core/i18n.cpp" "$root/src/core/i18n_strings.cpp" \
     "$root/src/install/archive.cpp" "$root/src/install/files.cpp" \
     "$root/src/install/transaction.cpp" "$root/src/system/storage_probe.cpp" \
     "$root/src/system/running.cpp" "$root/src/install/worker.cpp" \

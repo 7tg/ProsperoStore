@@ -22,7 +22,7 @@ A release is made by pushing the version tag: the workflow builds, attests and p
 ZIP and `SHA256SUMS`. Release files are not attached by hand, so that every published file
 comes from a run and has an attestation. The publish step handles three cases:
 
-- **No release for the tag:** it creates a pre-release with the two files and generated notes.
+- **No release for the tag:** it creates a release with the two files and generated notes.
 - **A release without a ZIP** (notes written in advance, or a draft): it adds the two files
   and leaves the title and notes alone.
 - **A release that already has a ZIP:** nothing is replaced or deleted, because the catalog

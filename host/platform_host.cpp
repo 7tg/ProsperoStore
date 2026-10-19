@@ -34,6 +34,14 @@ bool hide_splash_screen()
     return true;
 }
 
+int language_id()
+{
+    // The host has no console: STORE_CONSOLE_LANGUAGE stands in for its setting, to see the
+    // store in each language.
+    const char *chosen = std::getenv("STORE_CONSOLE_LANGUAGE");
+    return chosen ? std::atoi(chosen) : 1;
+}
+
 void sleep_us(std::uint32_t microseconds)
 {
     usleep(microseconds);

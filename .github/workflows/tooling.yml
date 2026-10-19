@@ -5,7 +5,7 @@ name: Build
 
 # A pull request, a version tag or a run started by hand is linted, tested and built. A tag
 # "v1.000.040" (for contentVersion "01.000.040" in sce_sys/param.json) also publishes a
-# pre-release with the app-folder ZIP and its checksum. The ZIP is the only release file, and
+# release with the app-folder ZIP and its checksum. The ZIP is the only release file, and
 # every entry in it is stored with permissions 0777: the console only starts an app whose
 # files are open to all.
 on:
@@ -221,7 +221,7 @@ jobs:
           --name "prosperostore-$GITHUB_SHA"
           --dir release
 
-      - name: Publish the pre-release
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -242,7 +242,6 @@ jobs:
             gh release create "$TAG" "${zips[0]}" "${sums[0]}" \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
-              --prerelease \
               --generate-notes \
               --title "ProsperoStore ${TAG#v} (alpha)"
             exit 0

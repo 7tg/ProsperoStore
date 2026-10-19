@@ -7,6 +7,7 @@
 #include "audio/cues.hpp"
 #include "audio/music.hpp"
 #include "core/frame_stats.hpp"
+#include "core/i18n.hpp"
 #include "core/image.hpp"
 #include "core/qr.hpp"
 #include "core/version.hpp"
@@ -272,6 +273,14 @@ int main()
         }
         std::string saved;
         save::read_file(settings_file, &saved, 4096);
+        // Japanese is offered when its font files are with the app.
+        struct stat japanese_font
+        {
+        };
+        store::i18n::set_japanese_available(
+            ::stat((app_root + "/assets/fonts/noto-sans-jp-regular.huifont").c_str(),
+                   &japanese_font) == 0);
+        screen.set_console_language(sys::language_id());
         screen.set_settings(store::parse_settings(saved));
         service.check_updates = screen.settings().check_updates;
         service.show_comments(screen.settings().show_comments);
@@ -889,13 +898,14 @@ int main()
             screen.pending_catalog_url = false;
             keyboard_active =
                 keyboard_catalog
-                    ? keyboard.open("Custom catalog URL", "https://example.com/api/v1/",
+                    ? keyboard.open(store::i18n::trs("Custom catalog URL"),
+                                    "https://example.com/api/v1/",
                                     screen.settings().catalog_url == store::catalog::kDefaultApi
                                         ? std::string("https://")
                                         : screen.settings().catalog_url,
                                     512, ps5::Ime::Enter::go)
-                    : keyboard.open("Search ProsperoStore", "App name or developer",
-                                    screen.query());
+                    : keyboard.open(store::i18n::trs("Search ProsperoStore"),
+                                    store::i18n::trs("App name or developer"), screen.query());
             sys::log("[STORE] keyboard open=%d", keyboard_active ? 1 : 0);
             if (!keyboard_active)
             {
@@ -907,8 +917,9 @@ int main()
                 sys::log("[STORE] keyboard refused: dialog=0x%08x module=0x%08x user=0x%08x id=%d",
                          static_cast<unsigned>(common), static_cast<unsigned>(module),
                          static_cast<unsigned>(foreground), user);
-                screen.notify("Keyboard unavailable",
-                              "The system keyboard could not open. Please try again.");
+                screen.notify(store::i18n::trs("Keyboard unavailable"),
+                              store::i18n::trs("The system keyboard could not open. Please try "
+                                               "again."));
                 feedback.play(audio::Cue::error);
             }
         }
@@ -930,8 +941,9 @@ int main()
             else if (keyboard_catalog && state != ps5::Ime::State::open)
                 screen.catalog_url_cancelled(); // closed without an address
             if (state == ps5::Ime::State::failed)
-                screen.notify("Keyboard closed",
-                              "The system keyboard closed unexpectedly. Please try again.");
+                screen.notify(store::i18n::trs("Keyboard closed"),
+                              store::i18n::trs("The system keyboard closed unexpectedly. Please "
+                                               "try again."));
             if (state != ps5::Ime::State::open)
                 sys::log("[STORE] keyboard closed state=%d", static_cast<int>(state));
             keyboard_active = state == ps5::Ime::State::open;
@@ -1009,7 +1021,15 @@ int main()
         if (feedback.rumble_strength > 0 && screen.settings().vibration)
             pad.rumble(feedback.rumble_strength, feedback.rumble_seconds);
         pad.tick(dt);
-        screen.draw(renderer, fonts.refs);
+        // The Japanese faces are loaded the first time the store speaks Japanese; if they cannot
+        // be, it goes back to English.
+        if (store::i18n::language() == store::i18n::Language::japanese && !fonts.has_japanese() &&
+            !fonts.load_japanese(renderer, app_root + "/assets"))
+        {
+            store::i18n::set_japanese_available(false);
+            store::i18n::set_language(store::i18n::Language::english);
+        }
+        screen.draw(renderer, fonts.active());
         renderer.present(0, display.width(), display.height());
 #ifdef STORE_DEVELOPMENT
         if (shot_wanted)

@@ -14,6 +14,8 @@ vendored files:
 | yyjson 0.10.0 | Bounded JSON parsing | MIT |
 | miniz 3.0.2 | ZIP inspection and extraction | MIT |
 | PicoSHA2 | SHA-256 | MIT |
+| Noto Sans CJK JP | The Japanese faces (assets/fonts/noto-sans-jp-*.huifont), baked by tools/font-baker | SIL OFL 1.1, assets/fonts/NotoSansCJK-LICENSE.txt |
+| stb_truetype (UI foundation) | Reads the fonts tools/font-baker turns into .huifont | MIT or public domain, full license in third_party/stb/stb_truetype.h |
 | stb_image (UI foundation) | Bounded PNG decode | MIT or public domain, full license in third_party/stb/stb_image.h |
 | Project Nayuki QR Code generator v1.8.0 (UI foundation) | QR app links | MIT, full license in assets/licenses/qrcodegen.txt |
 

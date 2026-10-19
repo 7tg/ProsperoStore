@@ -11,6 +11,7 @@
 #include "core/qr.hpp"
 #include "core/save_file.hpp"
 #include "gfx/gl_program.hpp"
+#include "platform/ps5/system.hpp"
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -32,6 +33,7 @@
 static void check_artwork_requests()
 {
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     assert(screen.artwork().empty());
     std::vector<store::App> apps;
     for (unsigned i = 0; i < 100; ++i)
@@ -74,6 +76,7 @@ static void check_artwork_requests()
 static void check_categories()
 {
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     store::App doom, mario, eden, old;
     doom.title_id = "PPSA99001";
     doom.name = "Doom";
@@ -129,6 +132,7 @@ static void check_categories()
 static void check_search_and_sort()
 {
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     store::App a, b, c;
     a.title_id = "PPSA99001";
     a.name = "Zulu";
@@ -227,6 +231,7 @@ static void check_search_and_sort()
 static void check_wrapping_and_closing()
 {
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     store::App app;
     app.title_id = "PPSA99001";
     app.name = "One";
@@ -279,6 +284,7 @@ static void check_news_and_new_apps()
     assert(store::catalog::parse_news(R"({"schema":3,"news":[]})", news, error) && news.empty());
     // An item is announced until its room has been opened; that is remembered in the settings.
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     screen.set_news({{"2026-10-11-a", "2026-10-11T10:00:00Z", "Hello", "First."}});
     assert(screen.settings().news_seen.empty() && !screen.settings_changed);
     screen.open_panel(3);
@@ -316,6 +322,7 @@ static void check_news_and_new_apps()
 static void check_installed_sections()
 {
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     store::App app;
     app.title_id = "PPSA99010";
     app.name = "Example";
@@ -392,6 +399,7 @@ static void check_keyboard_keys()
 static void check_hold_to_uninstall()
 {
     store::Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     store::App app;
     app.title_id = "PPSA99010";
     app.name = "Example";
@@ -464,6 +472,7 @@ static void check_catalog_settings()
     assert(parse_settings("catalog_url=http://bad/\nverify_signatures=oops\n").verify_signatures);
     assert(parse_settings("catalog_url=http://bad/\n").catalog_url == catalog::kDefaultApi);
     Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     screen.open_panel(1);
     hui::ui::Feedback feedback;
     hui::InputFrame down, up, confirm, back, right;
@@ -594,6 +603,7 @@ static void check_likes_and_comments()
     {
         // Off: the counts are dropped on arrival, there are three orders and no code.
         Screen screen;
+        screen.set_console_language(hui::sys::language_id());
         screen.set_settings(chosen);
         screen.set_catalog({a, b, c, d}, "test");
         screen.set_likes(likes);
@@ -611,6 +621,7 @@ static void check_likes_and_comments()
         assert(!screen.discussion_open() && screen.pending_discussion_link.empty());
     }
     Screen screen;
+    screen.set_console_language(hui::sys::language_id());
     screen.set_catalog({a, b, c, d}, "test");
     // Discover: the "Most liked" shelf comes with the likes, under the one that was there, and
     // the focus stays on the tile it was on.
@@ -746,6 +757,7 @@ int main(int argc, char **argv)
         if (!renderer.init() || !fonts.load(renderer, argv[1]) || !target.create(1920, 1080, 1))
             return 5;
         store::Screen screen;
+        screen.set_console_language(hui::sys::language_id());
         // Settings previews do not need a live catalog or cached downloads.
         if (argc == 4 &&
             (std::string(argv[3]) == "settings" || std::string(argv[3]) == "catalog-settings"))
@@ -906,7 +918,7 @@ int main(int argc, char **argv)
                 {
                     store::system::Inventory inventory;
                     inventory.apps = {{id, "ProsperoPuzzles", "01.000.010", "/data/homebrew/" + id,
-                                       "", false, true, false}};
+                                       "", "", false, true, false}};
                     screen.set_inventory(std::move(inventory));
                 }
                 assert(screen.open_app(id));
@@ -1178,16 +1190,16 @@ int main(int argc, char **argv)
             {
                 store::system::Inventory inventory;
                 inventory.apps = {
-                    {"PPSA99001", "ProsperoRadio", "01.000.000", "/data/homebrew/PPSA99001", "",
+                    {"PPSA99001", "ProsperoRadio", "01.000.000", "/data/homebrew/PPSA99001", "", "",
                      false, true, false},
                     {"PPSA99002", "ProsperoLight", "01.000.000", "/data/homebrew/PPSA99002",
-                     "Installed outside ProsperoStore. Not managed by this app.", false, false,
+                     "Installed outside ProsperoStore. Not managed by this app.", "", false, false,
                      false},
                     {"PPSA99980", "Example local app", "01.000.001", "/mnt/ext1/homebrew/PPSA99980",
-                     "Installed outside ProsperoStore. Not managed by this app.", false, false,
+                     "Installed outside ProsperoStore. Not managed by this app.", "", false, false,
                      false},
                     {"", "Example.ffpkg", "", "/mnt/ext1/homebrew/Example.ffpkg",
-                     "Image installed outside ProsperoStore. Not managed by this app.", true, false,
+                     "Image installed outside ProsperoStore. Not managed by this app.", "", true, false,
                      false}};
                 screen.set_inventory(std::move(inventory));
                 screen.set_status("Installed library preview");
@@ -1217,7 +1229,7 @@ int main(int argc, char **argv)
                     store::system::Inventory inventory;
                     inventory.apps = {{"PPSA99001", "ProsperoRadio", "01.000.005",
                                        "/data/homebrew/PPSA99001",
-                                       "Installed outside ProsperoStore. Not managed by this app.",
+                                       "Installed outside ProsperoStore. Not managed by this app.", "",
                                        false, false, false}};
                     screen.set_inventory(std::move(inventory));
                 }
@@ -1225,7 +1237,7 @@ int main(int argc, char **argv)
                 {
                     store::system::Inventory inventory;
                     inventory.apps = {{"PPSA99001", "ProsperoRadio", "01.000.000",
-                                       "/data/homebrew/PPSA99001", "", false, true, false}};
+                                       "/data/homebrew/PPSA99001", "", "", false, true, false}};
                     screen.set_inventory(std::move(inventory));
                 }
                 screen.set_query("radio");
@@ -1364,7 +1376,7 @@ int main(int argc, char **argv)
                         screen.set_activity({});
                         store::system::Inventory inventory;
                         inventory.apps = {{id, "RetroArch", "01.000.000", "/data/homebrew/" + id,
-                                           "", false, true, false}};
+                                           "", "", false, true, false}};
                         screen.set_inventory(std::move(inventory));
                         screen.finish_job(
                             true, false, "RetroArch installed",

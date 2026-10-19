@@ -6,6 +6,7 @@
 
 #include "gfx/renderer.hpp"
 #include "catalog/catalog.hpp"
+#include "core/i18n.hpp"
 #include "social/comments.hpp"
 #include "system/inventory.hpp"
 #include "ui/components/dialog.hpp"
@@ -105,6 +106,9 @@ struct Settings
     // Likes and comments from the apps' discussions on GitHub. On until the player says no:
     // while it is off the store reads nothing from that address and shows none of it.
     bool show_comments = true;
+    // The language of the store's own words: the console's until the player picks one here.
+    bool language_auto = true;
+    i18n::Language language = i18n::Language::english; // the pick, when it is not automatic
 };
 std::string format_settings(const Settings &settings);
 Settings parse_settings(std::string_view text);
@@ -197,6 +201,14 @@ class Screen
             settings.custom_active() ? settings.catalog_url : std::string(catalog::kDefaultApi);
         active_with_official_ = settings.custom_active() && settings.use_official;
         settings_ = std::move(settings);
+        apply_language();
+    }
+    // What the console is set to (hui::sys::language_id()); the store follows it until the
+    // player chooses a language in Settings.
+    void set_console_language(int console_language)
+    {
+        console_language_ = console_language;
+        apply_language();
     }
     const Settings &settings() const
     {
@@ -428,6 +440,14 @@ class Screen
     float rate_ = 0.0f, rate_time_ = 0.0f;
     std::uint64_t rate_done_ = 0;
     Settings settings_;
+    int console_language_ = 1;
+    float tab_size_ = 22.0f; // the sections' words, set smaller when a language needs the room
+    // Puts the language in use (the pick, else the console's) and, when it changed, rewrites what
+    // was made from words already: the page, About, News, the shelves.
+    void apply_language();
+    // What the language row of Settings shows, and the next pick: automatic, then each language.
+    std::string language_value() const;
+    void turn_language(int turn);
     std::string active_catalog_url_ = catalog::kDefaultApi;
     bool active_with_official_ = false; // the custom catalog is shown beside the official one
     std::vector<std::pair<std::string, std::uint64_t>> locations_;
@@ -547,10 +567,25 @@ class Fonts
 {
   public:
     bool load(hui::gfx::Renderer &renderer, const std::string &assets);
+    // The faces for Japanese (Noto Sans CJK JP for the regular, semibold and title faces; the
+    // rest as the others). They are loaded when the store first speaks Japanese, not before.
+    bool load_japanese(hui::gfx::Renderer &renderer, const std::string &assets);
+    bool has_japanese() const
+    {
+        return japanese_loaded_;
+    }
+    // What the screen is drawn with: the Japanese faces while the store speaks Japanese.
+    const hui::ui::Fonts &active() const
+    {
+        return japanese_loaded_ && i18n::language() == i18n::Language::japanese ? japanese : refs;
+    }
     hui::ui::Fonts refs;
+    hui::ui::Fonts japanese;
 
   private:
     hui::gfx::Font faces_[6];
+    hui::gfx::Font japanese_faces_[3];
+    bool japanese_loaded_ = false;
 };
 
 } // namespace store

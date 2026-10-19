@@ -15,6 +15,7 @@ extern "C"
     int sceKernelUsleep(unsigned int microseconds);
     int sceSystemServiceHideSplashScreen(void);
     int sceSystemServiceLoadExec(const char *path, const char **arguments);
+    int sceSystemServiceParamGetInt(int id, int *value);
 }
 
 extern "C" void hui_release_splash(void) __attribute__((weak));
@@ -54,6 +55,13 @@ bool hide_splash_screen()
     if (hui_release_splash)
         hui_release_splash();
     return sceSystemServiceHideSplashScreen() == 0;
+}
+
+int language_id()
+{
+    constexpr int kLanguage = 1; // SCE_SYSTEM_SERVICE_PARAM_ID_LANG
+    int language = 1;
+    return sceSystemServiceParamGetInt(kLanguage, &language) == 0 ? language : 1;
 }
 
 void sleep_us(std::uint32_t microseconds)

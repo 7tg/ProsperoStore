@@ -6,6 +6,7 @@
 #include "diag/trace.hpp"
 #endif
 #include "app/ambient.hpp"
+#include "core/i18n.hpp"
 #include "system/title_registry.hpp"
 #include "system/self_update_store.hpp"
 #include "app/service.hpp"
@@ -190,8 +191,8 @@ bool Service::load_policy(system::ScanPolicy &out, std::vector<std::string> *not
 #ifdef STORE_DEBUG_TRACE
         diag::trace("ShadowMountPlus settings refused: %s", policy_error.c_str());
 #endif
-        note("ShadowMountPlus's settings can't be used, so installing is off: " + policy_error +
-             ".");
+        note(i18n::trf("ShadowMountPlus's settings can't be used, so installing is off: {0}.",
+                       {policy_error}));
         return false;
     }
     hui::sys::log("[STORE] storage config=%d manual=%d roots=%zu entries=%zu depth=%u", configured,
@@ -219,10 +220,11 @@ bool Service::load_policy(system::ScanPolicy &out, std::vector<std::string> *not
 #endif
     // What the store did about lines it can't use, and what the user may want to fix.
     for (const auto &line : policy.ignored)
-        note("Left out, not a full path: " + line + ". Write it like /data/homebrew.");
+        note(i18n::trf("Left out, not a full path: {0}. Write it like /data/homebrew.", {line}));
     if (policy.fell_back)
-        note("None of your scan paths could be read, so ShadowMountPlus's default folders "
-             "are used (/data/homebrew and the homebrew folder on each drive).");
+        note(i18n::trs("None of your scan paths could be read, so ShadowMountPlus's default "
+                       "folders are used (/data/homebrew and the homebrew folder on each "
+                       "drive)."));
     for (const auto &entry : policy.manual)
     {
         // A manual entry is one game folder or one image. A folder of apps there does
@@ -388,7 +390,7 @@ void Service::run_installer()
                 if (ok)
                     response.status = 200;
                 else
-                    response.error = "The development archive could not be read";
+                    response.error = i18n::trs("The development archive could not be read");
                 return response;
             }
 #endif
@@ -424,8 +426,8 @@ void Service::run_installer()
     std::string broken;
     if (environment.root.empty() || !hui::save::ensure_directory(environment.root) ||
         (!installer_environment && !load_policy(environment.policy)))
-        broken = "Installing is unavailable: ShadowMountPlus's settings couldn't be read. "
-                 "About says what to check.";
+        broken = i18n::trs("Installing is unavailable: ShadowMountPlus's settings couldn't be "
+                           "read. About says what to check.");
     const auto rescan = [&]
     {
         Update installed;
@@ -460,23 +462,24 @@ void Service::run_installer()
         else if (recovered.restart)
         {
             // The console started the old store once more after its update.
-            broken = "ProsperoStore is finishing its own update. Close it and open it again.";
+            broken =
+                i18n::trs("ProsperoStore is finishing its own update. Close it and open it again.");
             Update notice;
             notice.kind = Update::Kind::job;
             notice.entry.id = environment.self;
             notice.ok = true;
             notice.restart = true;
-            notice.message = "ProsperoStore was updated";
-            notice.detail = "The console is still running the previous version. Close "
-                            "ProsperoStore, restart the console and open it again.";
+            notice.message = i18n::trs("ProsperoStore was updated");
+            notice.detail = i18n::trs("The console is still running the previous version. Close "
+                                      "ProsperoStore, restart the console and open it again.");
             publish(std::move(notice));
         }
         else if (!recovered.operation.empty())
         {
             Update notice;
             notice.kind = Update::Kind::notice;
-            notice.message = "ProsperoStore recovered";
-            notice.detail = "An interrupted " + recovered.operation + " was cleaned up.";
+            notice.message = i18n::trs("ProsperoStore recovered");
+            notice.detail = i18n::trf("An interrupted {0} was cleaned up.", {recovered.operation});
             publish(std::move(notice));
             rescan();
         }
@@ -581,18 +584,19 @@ void Service::run_installer()
         if (result.ok && result.operation == "self-update")
         {
             done.close = true;
-            done.message = "Updating ProsperoStore";
-            done.detail = "It closes now. A notification says when the new version is in "
-                          "place; then open it again.";
+            done.message = i18n::trs("Updating ProsperoStore");
+            done.detail = i18n::trs("It closes now. A notification says when the new version is "
+                                    "in place; then open it again.");
         }
         else if (result.ok)
         {
             done.restart = result.restart;
-            done.message = name + (result.operation == "uninstall" ? " uninstalled"
-                                   : result.operation == "adopt"   ? " is now managed"
-                                   : result.operation == "update"  ? " updated"
-                                                                   : " installed");
-            done.detail =
+            done.message = i18n::trf(result.operation == "uninstall" ? "{0} uninstalled"
+                                     : result.operation == "adopt"   ? "{0} is now managed"
+                                     : result.operation == "update"  ? "{0} updated"
+                                                                     : "{0} installed",
+                                     {name});
+            done.detail = i18n::trs(
                 result.restart ? "Close ProsperoStore and open it again to finish. If the "
                                  "old version opens, restart the console first."
                 : result.operation == "uninstall"
@@ -603,14 +607,17 @@ void Service::run_installer()
                 : result.operation == "update"
                     ? "The new version is in place. Give the console a few minutes "
                       "before starting it."
-                    : "ShadowMountPlus will add it to your home screen in a moment.";
+                    : "ShadowMountPlus will add it to your home screen in a moment.");
             if (result.operation == "update" && !result.kept_at.empty())
-                done.detail = "Previous folder kept in " + result.kept_at + ".";
+                done.detail = i18n::trf("Previous folder kept in {0}.", {result.kept_at});
         }
         else
         {
-            done.message = name + (result.error == "Cancelled" ? ": cancelled" : ": not changed");
-            done.detail = result.error == "Cancelled" ? "Nothing was installed." : result.error;
+            done.message =
+                name + std::string(
+                           i18n::tr(result.error == "Cancelled" ? ": cancelled" : ": not changed"));
+            done.detail =
+                result.error == "Cancelled" ? i18n::trs("Nothing was installed.") : result.error;
         }
         if (broken.empty())
             rescan();
@@ -697,6 +704,7 @@ void Service::run()
         Update cached;
         cached.kind = Update::Kind::catalog;
         cached.snapshot = shown(snapshot);
+        // The screen says these in its own language when it draws them (Screen::status_text).
         cached.message = snapshot.verified ? "Offline catalog • Checking for updates"
                                            : "Offline catalog • Signatures not checked";
         publish(std::move(cached));
@@ -756,8 +764,9 @@ void Service::run()
             notice.kind = Update::Kind::notice;
             if (!extra.accepted)
             {
-                notice.message = "Custom catalog not loaded";
-                notice.detail = extra_error.empty() ? "It could not be read." : extra_error;
+                notice.message = i18n::trs("Custom catalog not loaded");
+                notice.detail =
+                    extra_error.empty() ? i18n::trs("It could not be read.") : extra_error;
             }
             else
             {
@@ -820,8 +829,9 @@ void Service::run()
         else
         {
             installed.installed.complete = false;
-            installed.installed.errors.push_back("Installed apps could not be inspected with the "
-                                                 "current permissions or scan configuration.");
+            installed.installed.errors.push_back(
+                i18n::trs("Installed apps could not be inspected with the current permissions or "
+                          "scan configuration."));
         }
         hui::sys::log("[STORE] inventory complete=%d apps=%zu errors=%zu",
                       installed.installed.complete, installed.installed.apps.size(),
@@ -858,14 +868,14 @@ void Service::run()
         {
             const auto error =
                 settings_path().empty()
-                    ? "This console gave the store nowhere to keep them. They last until you "
-                      "close the store."
+                    ? i18n::trs("This console gave the store nowhere to keep them. They last "
+                                "until you close the store.")
                     : hui::save::write_atomic(settings_path(), settings);
             if (!error.empty())
             {
                 Update notice;
                 notice.kind = Update::Kind::notice;
-                notice.message = "Settings could not be saved";
+                notice.message = i18n::trs("Settings could not be saved");
                 notice.detail = error;
                 publish(std::move(notice));
             }
