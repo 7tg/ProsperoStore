@@ -87,7 +87,7 @@ class BuildLabelTests(unittest.TestCase):
         # deletes or rewrites anything on a release that exists.
         for forbidden in ("--clobber", "delete-asset", "gh release edit"):
             self.assertNotIn(forbidden, workflow)
-        publish = workflow[workflow.index("- name: Publish the pre-release") :]
+        publish = workflow[workflow.index("- name: Publish the release") :]
         self.assertIn('gh release create "$TAG" ', publish)
         self.assertIn('gh release upload "$TAG" ', publish)
         self.assertIn("--json assets --jq '.assets[].name'", publish)
