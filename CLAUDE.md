@@ -21,3 +21,7 @@ The CI runs `LINT_SKIP_TIDY=1 make lint` (`tools/lint.sh`). Run `LINT_SKIP_TIDY=
 ## Version
 
 A release tag is `vN.NNN.NNN` and must match `contentVersion` in `sce_sys/param.json` (`01.000.100` is tag `v1.000.100`); the workflow refuses a mismatch. A version bump changes the same five files as the `Version 01.000.090` commit: `sce_sys/param.json`, `src/platform/ps5/store_http.cpp`, `src/diag/diagnostics.cpp`, `src/net/curl_request.cpp` and `.github/ISSUE_TEMPLATE/bug_report.yml`. Tags here are lightweight.
+
+## After a release
+
+When the CI of a `v` tag succeeds and the GitHub release is published, suggest launching the catalog's **Release updates** workflow: `gh workflow run "Release updates"` in `darkxex/ps5-homebrew-catalog`. The store finds its updates from the catalog record `apps/PPSA99000.json`, not from GitHub, so installed stores see the new version only after that workflow's bump pull request is merged and the site is rebuilt. It also runs by itself daily at 07:37 UTC. Only suggest it: launching it acts on a public repository, so wait for the user's yes.
