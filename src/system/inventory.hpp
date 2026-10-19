@@ -12,6 +12,8 @@ namespace store::system
 struct InstalledApp
 {
     std::string id, name, version, path, reason;
+    // From the receipt: the catalog id of the app installed, when two share the title ID.
+    std::string catalog_id;
     bool image = false;
     bool managed = false;
     bool duplicate = false;

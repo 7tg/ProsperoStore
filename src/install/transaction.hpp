@@ -78,6 +78,9 @@ struct Request
     // The store updating itself: its own running folder is swapped for the new
     // one and the old one is kept until the next start, which finishes the job.
     bool self_update = false;
+    // Another app with this title ID is installed there and this one takes its place: the
+    // version need not be newer than the installed one.
+    bool replace = false;
 };
 struct Result
 {

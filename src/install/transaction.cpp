@@ -153,7 +153,7 @@ std::string timestamp(const Environment &environment)
 
 bool write_receipt(const Environment &environment, const Paths &paths, const std::string &id,
                    const std::string &location, const std::string &version, const std::string &tag,
-                   const std::string &digest)
+                   const std::string &digest, const std::string &catalog_id = {})
 {
     if (!make_directory(paths.receipts))
         return false;
@@ -164,6 +164,7 @@ bool write_receipt(const Environment &environment, const Paths &paths, const std
     receipt.release_tag = tag.empty() ? "unknown" : tag.substr(0, 128);
     receipt.digest = digest;
     receipt.installed_at = timestamp(environment);
+    receipt.catalog_id = catalog_id;
     return write_durable(paths.receipts, paths.receipt, catalog::format_receipt(receipt));
 }
 
@@ -484,7 +485,9 @@ Result apply(const Environment &environment, const Request &request, net::Contro
 {
     Result result;
     const auto &entry = request.entry;
-    const auto &id = entry.id;
+    // The console knows the app by its title ID, which two catalog entries can share.
+    const auto &id = entry.console_id();
+    const std::string catalog_id = entry.titleid.empty() ? std::string{} : entry.id;
     const auto fail = [&](std::string message)
     {
 #ifdef STORE_DEBUG_TRACE
@@ -532,7 +535,7 @@ Result apply(const Environment &environment, const Request &request, net::Contro
         if (self ? !folder_version(paths.target, id, previous)
                  : !managed(paths, id, request.location, previous))
             return fail("Installed outside ProsperoStore. Not managed by this app.");
-        if (!catalog::update_available(previous, entry.content_version))
+        if (!request.replace && !catalog::update_available(previous, entry.content_version))
             return fail("The catalog doesn't list a newer version");
         if (const int state = self ? 0 : running(environment, id); state != 0)
             return fail(running_refusal(state));
@@ -664,7 +667,7 @@ Result apply(const Environment &environment, const Request &request, net::Contro
         return abandon("The staging folder could not be cleaned");
     if (!folder_version(paths.staged, id, result.version))
         return abandon("The archive isn't a valid app");
-    if (update && !catalog::update_available(previous, result.version))
+    if (update && !request.replace && !catalog::update_available(previous, result.version))
         return abandon("The download isn't newer than the installed version");
     if (control.cancelled.load())
         return abandon("Cancelled");
@@ -687,6 +690,7 @@ Result apply(const Environment &environment, const Request &request, net::Contro
     journal.content_version = result.version;
     journal.release_tag = entry.version.substr(0, 128);
     journal.digest = entry.digest;
+    journal.catalog_id = catalog_id;
     if (!write_journal(environment, paths, journal))
     {
         journal.state = "staging"; // The earlier record still stands: clean up under it.
@@ -731,7 +735,7 @@ Result apply(const Environment &environment, const Request &request, net::Contro
         return result.interrupted ? result : fail(result.error); // Keep journal and backup.
 
     if (!write_receipt(environment, paths, id, request.location, result.version, entry.version,
-                       entry.digest))
+                       entry.digest, catalog_id))
         return fail("Installed, but not recorded yet. Restart ProsperoStore to finish.");
     STORE_STEP("recorded");
     // The journal stays on failure, so the next start sets the previous version aside.
@@ -889,7 +893,7 @@ Result recover(const Environment &environment)
     const auto record = [&]
     {
         return write_receipt(environment, paths, id, journal.location, journal.content_version,
-                             journal.release_tag, journal.digest);
+                             journal.release_tag, journal.digest, journal.catalog_id);
     };
     std::string version;
     if (journal.state == "staging")

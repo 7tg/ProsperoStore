@@ -50,6 +50,15 @@ struct App
     std::string added = {};    // when the catalog first listed it
     std::string category = {}; // its shelf: a catalog category key, or empty
     bool extra = false;        // from the custom catalog: it has no likes or comments
+    // What the console knows the app as; empty unless it shares its title ID with another app.
+    // title_id above is the catalog's key for it.
+    std::string console_id = {};
+    // The catalog keys of the other apps with the same title ID: installing one replaces them.
+    std::vector<std::string> conflicts = {};
+    const std::string &console() const
+    {
+        return console_id.empty() ? title_id : console_id;
+    }
 };
 
 // What the page asks the installer to do. The frame loop hands it to the
@@ -66,6 +75,9 @@ struct Order
     } kind = Kind::none;
     catalog::Entry entry; // install: the app's verified detail record
     std::string id, location;
+    // The install puts this app where another one with the same title ID is: its version need
+    // not be newer, because it is a different app.
+    bool replace = false;
 };
 // What the player chose, kept in /data/prosperostore/settings.txt.
 struct Settings
@@ -322,6 +334,9 @@ class Screen
         float progress = -1.0f; // 0..1 while a measurable phase runs
     };
     Offer offer(const App &app) const;
+    // The installed app that installing this one would replace: another catalog app with the
+    // same title ID. Null when there is none.
+    const App *replaces(const App &app) const;
     // Reduce motion: 0 when the setting is on, else 1.
     float motion() const
     {
@@ -405,6 +420,7 @@ class Screen
 
     hui::ui::Theme theme_;
     hui::ui::TextView article_;
+    int fact_rows_ = 1; // rows of chips on the product page; the article sits below them
     hui::ui::ToastStack toasts_;
     hui::ui::Dialog dialog_;
     Activity activity_;
@@ -442,7 +458,8 @@ class Screen
         adopt,
         quit,
         disable_signatures,
-        store_update
+        store_update,
+        replace
     } ask_ = Ask::none;
     enum class StoreOffer
     {

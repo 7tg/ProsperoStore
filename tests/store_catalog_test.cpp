@@ -111,6 +111,43 @@ int main()
     assert(!parse_versions(R"({"schema":3,"apps":{"PPSA99000":{"content_version":"latest"}}})",
                            versions, error));
 
+    // Two apps can share a title ID: the second is in "shared" and has its own id.
+    assert(record_id("PPSA99303") && record_id("PPSA99303-swordpdf") && !record_id("PPSA99303-") &&
+           !record_id("PPSA99303-Sword") && !record_id("PPSA99303/x") &&
+           !record_id("../PPSA99303"));
+    const std::string twins =
+        R"({"schema":3,"apps":[{"titleid":"PPSA99303","id":"PPSA99303","name":"A","kind":"game","status":"available","conflicts_with":["PPSA99303-swordpdf"]}],)"
+        R"("shared":[{"titleid":"PPSA99303","id":"PPSA99303-swordpdf","name":"B","kind":"game","status":"available","conflicts_with":["PPSA99303"]}]})";
+    std::vector<Entry> pair;
+    assert(parse_index(twins, pair, error) && pair.size() == 2);
+    assert(pair[0].id == "PPSA99303" && pair[0].console_id() == "PPSA99303" &&
+           pair[0].conflicts == std::vector<std::string>{"PPSA99303-swordpdf"});
+    assert(pair[1].id == "PPSA99303-swordpdf" && pair[1].titleid == "PPSA99303" &&
+           pair[1].console_id() == "PPSA99303" &&
+           pair[1].conflicts == std::vector<std::string>{"PPSA99303"});
+    // An older catalog has no ids of its own; a title ID twice in "apps" is still refused.
+    assert(parse_index(index, pair, error) && pair.size() == 1 &&
+           pair[0].console_id() == pair[0].id);
+    for (
+        const char *bad :
+        {R"({"schema":3,"apps":[{"titleid":"PPSA99303","name":"A","kind":"game","status":"available"},{"titleid":"PPSA99303","name":"B","kind":"game","status":"available"}]})",
+         R"({"schema":3,"apps":[{"titleid":"PPSA99303","id":"PPSA11111-x","name":"A","kind":"game","status":"available"}]})",
+         R"({"schema":3,"apps":[],"shared":{}})"})
+        assert(!parse_index(bad, pair, error));
+    std::map<std::string, std::string> shared_versions;
+    assert(parse_versions(R"({"schema":3,"apps":{"PPSA99303":{"content_version":"01.000.001"}},)"
+                          R"("shared":{"PPSA99303-swordpdf":{"content_version":"01.000.002"}}})",
+                          shared_versions, error));
+    assert(shared_versions.size() == 2 && shared_versions.at("PPSA99303-swordpdf") == "01.000.002");
+    assert(parse_versions(R"({"schema":3,"apps":{"PPSA99303-x":{"content_version":null}}})",
+                          shared_versions, error)); // a shared id is a valid key
+    Receipt twin{"PPSA99303", "/data/homebrew",    "01.000.002", "v", std::string(64, 'a'),
+                 "now",       "PPSA99303-swordpdf"};
+    Receipt back;
+    assert(parse_receipt(format_receipt(twin), back, error) && back.catalog_id == twin.catalog_id);
+    twin.catalog_id.clear();
+    assert(parse_receipt(format_receipt(twin), back, error) && back.catalog_id.empty());
+
     PublicKey key{};
     std::array<std::uint8_t, 32> seed{};
     std::array<std::uint8_t, 64> secret{};

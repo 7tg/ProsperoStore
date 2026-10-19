@@ -8,7 +8,7 @@ namespace store::catalog
 {
 std::string Icons::key(const Entry &entry)
 {
-    return title_id(entry.id) && api_url(entry.icon)
+    return record_id(entry.id) && api_url(entry.icon)
                ? sha256(entry.id + "\n" + entry.icon + "\n" + entry.icon_hash)
                : std::string{};
 }

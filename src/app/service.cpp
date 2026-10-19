@@ -240,9 +240,10 @@ bool Service::load_policy(system::ScanPolicy &out, std::vector<std::string> *not
     return true;
 }
 
-bool Service::request_install(const catalog::Entry &entry, const std::string &location)
+bool Service::request_install(const catalog::Entry &entry, const std::string &location,
+                              bool replace)
 {
-    return enqueue({Job::Kind::install, entry, location});
+    return enqueue({Job::Kind::install, entry, location, replace});
 }
 
 bool Service::request_adopt(const catalog::Entry &entry, const std::string &location)
@@ -278,10 +279,13 @@ bool Service::save_settings(std::string text)
     return true;
 }
 
-bool Service::request_uninstall(const std::string &id, const std::string &location)
+bool Service::request_uninstall(const std::string &id, const std::string &location,
+                                const std::string &console_id)
 {
     catalog::Entry entry;
     entry.id = id;
+    if (console_id != id)
+        entry.titleid = console_id;
     std::string name;
     {
         std::unique_lock lock(mutex_, std::try_to_lock);
@@ -536,11 +540,12 @@ void Service::run_installer()
         if (!broken.empty())
             result.error = broken;
         else if (job.kind == Job::Kind::uninstall)
-            result = install::uninstall(environment, job.entry.id, job.location, progress_);
+            result =
+                install::uninstall(environment, job.entry.console_id(), job.location, progress_);
         else if (job.kind == Job::Kind::adopt)
-            result = install::adopt(environment, job.entry.id, job.location);
+            result = install::adopt(environment, job.entry.console_id(), job.location);
 #ifdef STORE_FILE_WORKER
-        else if (job.entry.id == environment.self)
+        else if (job.entry.console_id() == environment.self)
         {
             // The store itself: the kit's helper swaps the files of its folder
             // once it has closed, so the next start runs the new version.
@@ -551,9 +556,10 @@ void Service::run_installer()
         }
 #endif
         else
-            result = install::apply(
-                environment, {job.entry, job.location, minimum, job.entry.id == environment.self},
-                job_control_, progress_);
+            result = install::apply(environment,
+                                    {job.entry, job.location, minimum,
+                                     job.entry.console_id() == environment.self, job.replace},
+                                    job_control_, progress_);
         hui::sys::log("[STORE] job id=%s operation=%s ok=%d version=%s error=%s %s",
                       job.entry.id.c_str(), result.operation.c_str(), result.ok,
                       result.version.c_str(), result.error.c_str(), result.note.c_str());
@@ -562,7 +568,7 @@ void Service::run_installer()
         int unregistered = 1;
         if (result.ok && result.operation == "uninstall")
         {
-            unregistered = system::unregister_title(job.entry.id);
+            unregistered = system::unregister_title(job.entry.console_id());
             hui::sys::log("[STORE] unregister id=%s rc=0x%08x", job.entry.id.c_str(),
                           static_cast<unsigned>(unregistered));
         }

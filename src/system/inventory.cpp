@@ -181,6 +181,8 @@ Inventory scan_installed(const ScanPolicy &policy, const std::string &receipts,
                           catalog::parse_receipt(body, receipt, error) && receipt.id == app.id &&
                           clean_absolute_path(receipt.location) && receipt.location == parent &&
                           receipt.content_version == app.version;
+            if (app.managed)
+                app.catalog_id = receipt.catalog_id;
             if (!app.managed)
                 app.reason = "Installed outside ProsperoStore. Not managed by this app.";
             result.apps.push_back(std::move(app));

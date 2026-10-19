@@ -20,6 +20,9 @@ constexpr std::size_t kNewsLimit = 64 * 1024;
 constexpr std::uint64_t kArtifactLimit = 2ULL * 1024 * 1024 * 1024;
 
 bool title_id(std::string_view value);
+// A catalog id: a title ID, or TITLEID-owner for an app that shares its title ID with another
+// (apps/PPSA01234-janedoe.json). The console only knows the title ID.
+bool record_id(std::string_view value);
 bool version(std::string_view value);
 bool update_available(std::string_view installed, std::string_view available);
 // The catalog is published twice: on its own site, and as a mirror for networks that block that
@@ -44,7 +47,15 @@ bool hex_bytes(std::string_view text, std::span<std::uint8_t> bytes);
 
 struct Entry
 {
-    std::string id, name, author, kind, status;
+    // id is the catalog's key for the app; titleid is what the console knows it as. They differ
+    // only for an app that shares its title ID with another; titleid is empty when they don't.
+    std::string id, titleid, name, author, kind, status;
+    // The other listed apps with the same title ID: installing this one replaces them.
+    std::vector<std::string> conflicts = {};
+    const std::string &console_id() const
+    {
+        return titleid.empty() ? id : titleid;
+    }
     std::string version, content_version, format, icon, icon_hash, released, updated, large_icon;
     std::string description, license, source, page, artifact, digest, release_notes;
     std::string added; // when the catalog first listed the app; empty from an older catalog
@@ -76,6 +87,9 @@ struct Manifest
 struct Receipt
 {
     std::string id, location, content_version, release_tag, digest, installed_at;
+    // The catalog id of the app that was installed; empty for an app with its title ID to itself
+    // and for a receipt written before title IDs could be shared.
+    std::string catalog_id = {};
 };
 
 // The one transaction in progress. content_version is the version being put in
@@ -83,6 +97,7 @@ struct Receipt
 struct Journal
 {
     std::string operation, state, id, location, content_version, release_tag, digest;
+    std::string catalog_id = {};
 };
 
 bool parse_installed(std::string_view body, Entry &out, std::string &error);

@@ -158,7 +158,7 @@ bool parse_index(std::string_view body, Index &out)
         const std::string_view id(yyjson_get_str(key), yyjson_get_len(key));
         if (index.size() >= kApps)
             break;
-        if (title_id(id) && yyjson_is_obj(app))
+        if (record_id(id) && yyjson_is_obj(app))
             index.insert_or_assign(std::string(id), counts(app));
     }
     out = std::move(index);
@@ -169,7 +169,11 @@ bool parse_thread(std::string_view body, std::string_view id, Thread &out)
 {
     Document document;
     auto *value = root(body, kThreadLimit, document);
-    if (!value || !title_id(id) || words(value, "titleid") != id)
+    // A file of an older catalog names the app by "titleid" alone.
+    if (!value || !record_id(id))
+        return false;
+    const auto named = words(value, "id");
+    if ((named.empty() ? words(value, "titleid") : named) != id)
         return false;
     Thread thread;
     thread.counts = counts(value);

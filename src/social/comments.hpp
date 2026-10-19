@@ -34,6 +34,17 @@ inline bool title_id(std::string_view value)
     return value.size() == 9 && value.starts_with("PPSA") &&
            std::all_of(value.begin() + 4, value.end(), [](char c) { return c >= '0' && c <= '9'; });
 }
+// A catalog id: the title ID, or TITLEID-owner for an app that shares its title ID.
+inline bool record_id(std::string_view value)
+{
+    return value.size() == 9
+               ? title_id(value)
+               : value.size() > 10 && value.size() <= 49 && title_id(value.substr(0, 9)) &&
+                     value[9] == '-' &&
+                     std::all_of(
+                         value.begin() + 10, value.end(), [](char c)
+                         { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
+}
 inline std::string index_url()
 {
     return std::string(kBase) + "v1/index.json";
@@ -51,8 +62,9 @@ inline bool data_url(std::string_view url)
     if (path == "v1/index.json")
         return true;
     constexpr std::string_view folder = "v1/apps/", ending = ".json";
-    return path.size() == folder.size() + 9 + ending.size() && path.starts_with(folder) &&
-           path.ends_with(ending) && title_id(path.substr(folder.size(), 9));
+    return path.size() > folder.size() + ending.size() && path.starts_with(folder) &&
+           path.ends_with(ending) &&
+           record_id(path.substr(folder.size(), path.size() - folder.size() - ending.size()));
 }
 // The address a code may carry: a page on github.com, written in plain address characters.
 inline bool discussion_url(std::string_view url)

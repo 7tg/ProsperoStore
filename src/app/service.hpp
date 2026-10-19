@@ -99,8 +99,10 @@ class Service
     void report_frames(std::string report);
     // Never block: false means "ask again next frame" (or the queue is full).
     // location is the scanned folder that holds, or will hold, the app's folder.
-    bool request_install(const catalog::Entry &entry, const std::string &location);
-    bool request_uninstall(const std::string &id, const std::string &location);
+    bool request_install(const catalog::Entry &entry, const std::string &location,
+                         bool replace = false);
+    bool request_uninstall(const std::string &id, const std::string &location,
+                           const std::string &console_id = {});
     // Takes over an app installed by hand (a receipt is written, nothing else).
     bool request_adopt(const catalog::Entry &entry, const std::string &location);
     // The settings file, written by a worker: never on the frame.
@@ -130,6 +132,7 @@ class Service
         } kind = Kind::install;
         catalog::Entry entry;
         std::string location;
+        bool replace = false; // a different app with this title ID is installed there
     };
     static void *entry(void *self);
     static void *icon_entry(void *self);

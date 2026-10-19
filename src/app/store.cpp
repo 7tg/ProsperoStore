@@ -93,7 +93,6 @@ constexpr float kTabH = 44.0f; // the sections in the top bar
 constexpr Rect kPageIcon{96.0f, 146.0f, 144.0f, 144.0f};
 constexpr float kInfoX = 96.0f;
 constexpr float kInfoW = 900.0f;
-constexpr float kFactsW = 1180.0f; // the row of chips may run as far as the title does
 constexpr Rect kActionBox{1336.0f, 212.0f, 488.0f, 604.0f};
 constexpr Rect kPageHero{96.0f, 84.0f, 212.0f, 212.0f}; // the icon, when it is the app's picture
 constexpr float kButtonRadius = 18.0f;
@@ -766,16 +765,23 @@ void Screen::set_catalog(std::vector<App> apps, std::string status, bool current
     // app is a hundred thousand comparisons on the frame: look them up instead.
     // (Room for the local ones first: the keys point into the apps.)
     apps_.reserve(apps_.size() + inventory_.apps.size());
-    std::map<std::string_view, std::size_t> listed;
+    // Keyed by what the console knows an app as. Two catalog apps can share it; the receipt says
+    // which of them is the one installed (none: the one whose key is the title ID).
+    std::multimap<std::string_view, std::size_t> listed;
     for (std::size_t i = 0; i < apps_.size(); ++i)
-        listed.emplace(apps_[i].title_id, i);
+        listed.emplace(apps_[i].console(), i);
     for (const auto &installed : inventory_.apps)
     {
         const auto id = installed.id.empty() ? "local:" + installed.path : installed.id;
-        const auto known = listed.find(id);
-        auto found = known == listed.end()
-                         ? apps_.end()
-                         : apps_.begin() + static_cast<std::ptrdiff_t>(known->second);
+        auto found = apps_.end();
+        const auto [first, last] = listed.equal_range(id);
+        for (auto at = first; at != last; ++at)
+        {
+            auto candidate = apps_.begin() + static_cast<std::ptrdiff_t>(at->second);
+            const auto &wanted = installed.catalog_id.empty() ? id : installed.catalog_id;
+            if (found == apps_.end() || candidate->title_id == wanted)
+                found = candidate;
+        }
         if (found == apps_.end())
         {
             App local;
@@ -1501,6 +1507,20 @@ void Screen::update_page(const InputFrame &input, ui::Feedback &feedback)
             feedback.rumble(0.25f, 0.05f);
             nudge_.trigger();
         }
+        else if (const App *other =
+                     state.primary == Order::Kind::install ? replaces(shown) : nullptr)
+        {
+            ask_ = Ask::replace;
+            ask_id_ = shown.title_id;
+            dialog_.open({ui::StatusKind::question,
+                          "Replace " + other->name + " with " + shown.name + "?",
+                          "Both use the title ID " + shown.console() +
+                              ", and a console holds one app per title ID. " + other->name +
+                              " is removed when " + shown.name +
+                              " is installed, and they share their save data.",
+                          {{"Cancel"}, {"Replace", ui::ButtonKind::primary}}},
+                         feedback);
+        }
         else if (state.primary == Order::Kind::adopt)
         {
             ask_ = Ask::adopt;
@@ -1645,7 +1665,8 @@ void Screen::update(const InputFrame &raw, float dt, ui::Feedback &feedback)
     if (!auto_order_.empty() && details_ && focused() && focused()->title_id == auto_order_)
     {
         const Offer state = offer(*focused());
-        if (state.armed && !state.busy && state.primary == Order::Kind::install)
+        if (state.armed && !state.busy && state.primary == Order::Kind::install &&
+            !replaces(*focused()))
         {
             order(*focused(), Order::Kind::install);
             auto_order_.clear();
@@ -1763,6 +1784,12 @@ void Screen::update(const InputFrame &raw, float dt, ui::Feedback &feedback)
                 settings_changed = true;
                 notify("Catalog settings saved",
                        "Signatures will not be checked after reopening the store.");
+            }
+            else if (ask_ == Ask::replace)
+            {
+                for (const auto &app : apps_)
+                    if (app.title_id == ask_id_)
+                        order(app, Order::Kind::install);
             }
             else
                 for (const auto &app : apps_)
@@ -2527,9 +2554,12 @@ void Screen::order(const App &app, Order::Kind kind)
     pending_order = {};
     pending_order.kind = kind;
     pending_order.id = app.title_id;
-    if (!app.installed.empty())
+    // Installing over a different app with the same title ID: it stays where that one is.
+    const App *other = kind == Order::Kind::install ? replaces(app) : nullptr;
+    pending_order.replace = other != nullptr;
+    if (!app.installed.empty() || other)
     {
-        const auto &path = app.installed.front().path;
+        const auto &path = (other ? other : &app)->installed.front().path;
         pending_order.location = path.substr(0, path.find_last_of('/'));
     }
     else
@@ -2539,8 +2569,20 @@ void Screen::order(const App &app, Order::Kind kind)
     if (kind == Order::Kind::install && app.detail)
         pending_order.entry = *app.detail;
     pending_order.entry.id = app.title_id;
+    pending_order.entry.titleid = app.console_id == app.title_id ? std::string{} : app.console_id;
     if (pending_order.entry.name.empty())
         pending_order.entry.name = app.name;
+}
+
+const App *Screen::replaces(const App &app) const
+{
+    if (!app.installed.empty() || app.console_id.empty())
+        return nullptr;
+    for (const auto &other : apps_)
+        if (other.title_id != app.title_id && other.console() == app.console() &&
+            !other.installed.empty() && !other.local_only)
+            return &other;
+    return nullptr;
 }
 
 bool Screen::open_app(const std::string &id)
@@ -2596,7 +2638,8 @@ bool Screen::remote_adopt(const std::string &id)
 
 bool Screen::remote_order()
 {
-    if (!details_ || !focused() || !focused()->detail)
+    // Replacing another app is confirmed on the console, not from afar.
+    if (!details_ || !focused() || !focused()->detail || replaces(*focused()))
         return false;
     order(*focused(), Order::Kind::install);
     return true;
@@ -2772,7 +2815,7 @@ Screen::Offer Screen::offer(const App &app) const
             out.primary = Order::Kind::uninstall;
         }
         else if (!app.local_only && !installed->image && !installed->duplicate &&
-                 installed->path.ends_with("/" + app.title_id))
+                 installed->path.ends_with("/" + app.console()))
         {
             // Installed by hand, and listed in the catalog: it can be handed over.
             out.label = "Manage with ProsperoStore";
@@ -2808,7 +2851,7 @@ Screen::Offer Screen::offer(const App &app) const
     }
     if (out.primary == Order::Kind::none)
         return out;
-    if (installed && std::find(running_.begin(), running_.end(), app.title_id) != running_.end())
+    if (installed && std::find(running_.begin(), running_.end(), app.console()) != running_.end())
     {
         out.reason = app.name + " is running. Close it first.";
         return out;
@@ -2824,9 +2867,11 @@ Screen::Offer Screen::offer(const App &app) const
     else
     {
         out.armed = true;
+        const App *other = out.primary == Order::Kind::install ? replaces(app) : nullptr;
         out.reason = out.primary == Order::Kind::uninstall
                          ? "Removes the app's folder. Its saved data stays on the console."
-                         : "Checked against the signed catalog before anything is installed.";
+                     : other ? "Replaces " + other->name + ", which has the same title ID."
+                             : "Checked against the signed catalog before anything is installed.";
     }
     return out;
 }
@@ -3137,21 +3182,20 @@ void Screen::draw_page(const ui::Fonts &fonts, std::uint32_t glass)
                 app.released.substr(0, app.released.find('T'));
     ui::text(list, fonts.regular, fonts.regular.font->fit(line, 26, kInfoW), kInfoX, 502, 26,
              kInk.with_alpha(0.78f));
-    // The facts as chips: version, size, licence.
-    float cx = kInfoX;
+    // The facts as chips: version, size, licence, and the likes and comments behind their signs.
+    // A row is as wide as the description. A chip that doesn't fit goes on the next row, and the
+    // article moves down for it.
+    struct Fact
+    {
+        std::string word;
+        int sign; // 0 none, 1 like, 2 comment
+        float width;
+    };
+    std::vector<Fact> facts;
     const auto chip = [&](const std::string &word)
     {
-        if (word.empty())
-            return;
-        const float width = fonts.semibold.measure(word, 20) + 36.0f;
-        if (cx + width >
-            kInfoX + kFactsW) // a chip that doesn't fit is left out; the article says it
-            return;
-        list.bordered_rect({cx, 532.0f, width, 42.0f}, 21, kInk.with_alpha(0.08f), 1.5f,
-                           kInk.with_alpha(0.22f));
-        ui::text(list, fonts.semibold, word, cx + width * 0.5f, centred(553.0f, 20), 20,
-                 kInk.with_alpha(0.88f), gfx::Align::center);
-        cx += width + 12.0f;
+        if (!word.empty())
+            facts.push_back({word, 0, fonts.semibold.measure(word, 20) + 36.0f});
     };
     if (app.detail)
     {
@@ -3165,26 +3209,54 @@ void Screen::draw_page(const ui::Fonts &fonts, std::uint32_t glass)
              : app.detail->sandbox == "leaves" ? std::string("Leaves sandbox")
                                                : std::string());
     }
-    // Likes and comments join the facts, zero included, each behind its sign.
+    // Another listed app has this one's title ID: a console holds one of them.
+    chip(app.conflicts.empty() ? std::string() : std::string("The ID is not unique"));
+    // Likes and comments join the facts, zero included.
     if (const auto *counts = counts_of(app))
+        for (const auto &[sign, word] :
+             {std::pair<int, std::string>{1, counted(counts->likes, " like", " likes")},
+              {2, counted(counts->comments, " comment", " comments")}})
+            facts.push_back({word, sign, fonts.semibold.measure(word, 20) + 62.0f});
+    constexpr float kFactRow = 54.0f; // a chip is 42 high, with 12 between rows
+    constexpr int kMostFactRows = 3;
+    int rows = 1;
+    float cx = kInfoX;
+    for (std::size_t at = 0; at < facts.size(); ++at)
     {
-        const auto fact = [&](bool like, const std::string &word)
+        const auto &fact = facts[at];
+        // Likes and comments go together: if the pair doesn't fit, both start the next row.
+        const float needed =
+            fact.width +
+            (fact.sign == 1 && at + 1 < facts.size() ? 12.0f + facts[at + 1].width : 0.0f);
+        if (cx > kInfoX && cx + needed > kInfoX + kInfoW)
         {
-            const float width = fonts.semibold.measure(word, 20) + 62.0f;
-            if (cx + width > kInfoX + kFactsW)
-                return;
-            list.bordered_rect({cx, 532.0f, width, 42.0f}, 21, kInk.with_alpha(0.08f), 1.5f,
-                               kInk.with_alpha(0.22f));
-            if (like)
-                like_sign(list, cx + 18.0f, 553.0f, 14.0f, kAccent);
+            if (rows == kMostFactRows)
+                break; // the article says what doesn't fit
+            ++rows;
+            cx = kInfoX;
+        }
+        const float top = 532.0f + static_cast<float>(rows - 1) * kFactRow;
+        list.bordered_rect({cx, top, fact.width, 42.0f}, 21, kInk.with_alpha(0.08f), 1.5f,
+                           kInk.with_alpha(0.22f));
+        if (fact.sign == 0)
+            ui::text(list, fonts.semibold, fact.word, cx + fact.width * 0.5f,
+                     centred(top + 21.0f, 20), 20, kInk.with_alpha(0.88f), gfx::Align::center);
+        else
+        {
+            if (fact.sign == 1)
+                like_sign(list, cx + 18.0f, top + 21.0f, 14.0f, kAccent);
             else
-                comment_sign(list, cx + 17.0f, 554.0f, 17.0f, kInk.with_alpha(0.88f));
-            ui::text(list, fonts.semibold, word, cx + 44.0f, centred(553.0f, 20), 20,
+                comment_sign(list, cx + 17.0f, top + 22.0f, 17.0f, kInk.with_alpha(0.88f));
+            ui::text(list, fonts.semibold, fact.word, cx + 44.0f, centred(top + 21.0f, 20), 20,
                      kInk.with_alpha(0.88f));
-            cx += width + 12.0f;
-        };
-        fact(true, counted(counts->likes, " like", " likes"));
-        fact(false, counted(counts->comments, " comment", " comments"));
+        }
+        cx += fact.width + 12.0f;
+    }
+    if (rows != fact_rows_)
+    {
+        fact_rows_ = rows;
+        const float extra = static_cast<float>(rows - 1) * kFactRow;
+        article_.set_bounds({kInfoX - 4.0f, 604.0f + extra, kInfoW + 8.0f, 322.0f - extra});
     }
     ui::Canvas canvas{list, fonts, glass, time_};
     article_.draw(canvas);

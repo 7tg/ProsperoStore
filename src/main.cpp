@@ -463,6 +463,8 @@ int main()
                     apps.back().added = entry.added;
                     apps.back().category = entry.category;
                     apps.back().extra = entry.extra;
+                    apps.back().console_id = entry.console_id();
+                    apps.back().conflicts = entry.conflicts;
                 }
 #ifdef STORE_DEBUG_TRACE
                 store::diag::trace("catalog: %zu apps, %s, %s", apps.size(),
@@ -625,13 +627,14 @@ int main()
         // The page's request goes to the installer; one refused by a busy lock is asked again.
         if (auto &order = screen.pending_order; order.kind != store::Order::Kind::none)
         {
-            const bool accepted = order.kind == store::Order::Kind::install
-                                      ? service.request_install(order.entry, order.location)
-                                  : order.kind == store::Order::Kind::adopt
-                                      ? service.request_adopt(order.entry, order.location)
-                                  : order.kind == store::Order::Kind::uninstall
-                                      ? service.request_uninstall(order.id, order.location)
-                                      : service.cancel_job(order.id);
+            const bool accepted =
+                order.kind == store::Order::Kind::install
+                    ? service.request_install(order.entry, order.location, order.replace)
+                : order.kind == store::Order::Kind::adopt
+                    ? service.request_adopt(order.entry, order.location)
+                : order.kind == store::Order::Kind::uninstall
+                    ? service.request_uninstall(order.id, order.location, order.entry.console_id())
+                    : service.cancel_job(order.id);
             if (accepted || !service.installer)
                 order = {};
         }

@@ -277,7 +277,7 @@ bool Client::news(const Snapshot &snapshot, std::vector<News> &out, net::Control
 bool Client::detail(const Snapshot &snapshot, const std::string &id, Entry &out,
                     net::Control &control, std::string &error)
 {
-    if (!snapshot.accepted || (verify_ && !snapshot.verified) || !title_id(id))
+    if (!snapshot.accepted || (verify_ && !snapshot.verified) || !record_id(id))
     {
         error = "The catalog is not verified";
         return false;

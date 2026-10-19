@@ -122,7 +122,8 @@ bool link_url(std::string_view url)
 bool read_entry(yyjson_val *value, Entry &entry, bool detail)
 {
     if (!yyjson_is_obj(value) || !field(value, "titleid", entry.id, 9, true) ||
-        !title_id(entry.id) || !field(value, "name", entry.name, 256, true) ||
+        !title_id(entry.id) || !field(value, "id", entry.titleid, 49) ||
+        !field(value, "name", entry.name, 256, true) ||
         !field(value, "author", entry.author, 256) || !field(value, "kind", entry.kind, 32, true) ||
         !field(value, "status", entry.status, 32, true) ||
         !field(value, "version", entry.version, 128) ||
@@ -135,6 +136,27 @@ bool read_entry(yyjson_val *value, Entry &entry, bool detail)
         return false;
     if (entry.status != "available" && entry.status != "coming_soon")
         return false;
+    // The id of an older catalog is the title ID. With an id of its own, the entry is addressed
+    // by it and the console knows it by the title ID.
+    if (entry.titleid.empty() || entry.titleid == entry.id)
+        entry.titleid.clear();
+    else
+    {
+        if (!record_id(entry.titleid) || entry.titleid.compare(0, 9, entry.id) != 0)
+            return false;
+        std::swap(entry.id, entry.titleid);
+    }
+    if (auto *others = yyjson_obj_get(value, "conflicts_with"); others && yyjson_is_arr(others))
+    {
+        std::size_t at = 0, total = 0;
+        yyjson_val *other = nullptr;
+        yyjson_arr_foreach(others, at, total, other)
+        {
+            if (entry.conflicts.size() < 8 && yyjson_is_str(other) &&
+                record_id(std::string_view(yyjson_get_str(other), yyjson_get_len(other))))
+                entry.conflicts.emplace_back(yyjson_get_str(other), yyjson_get_len(other));
+        }
+    }
     if (!entry.icon.empty() && !api_url(entry.icon))
         return false;
     if (!entry.large_icon.empty() && !api_url(entry.large_icon))
@@ -219,6 +241,16 @@ std::string developer_link(const Entry &entry, bool &support)
                 return link;
         }
     return {};
+}
+
+bool record_id(std::string_view value)
+{
+    if (value.size() == 9)
+        return title_id(value);
+    return value.size() > 10 && value.size() <= 9 + 1 + 39 && title_id(value.substr(0, 9)) &&
+           value[9] == '-' &&
+           std::all_of(value.begin() + 10, value.end(), [](char c)
+                       { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; });
 }
 
 bool title_id(std::string_view value)
@@ -404,8 +436,8 @@ bool parse_manifest(std::string_view body, std::uint64_t highest, Manifest &out,
         const std::string path(yyjson_get_str(key), yyjson_get_len(key));
         // A file this version doesn't know is passed over, so the catalog can add one later.
         if (path != "index.json" && path != "versions.json" &&
-            !(path.size() == 19 && path.starts_with("apps/") && path.ends_with(".json") &&
-              title_id(std::string_view(path).substr(5, 9))))
+            !(path.size() > 10 && path.starts_with("apps/") && path.ends_with(".json") &&
+              record_id(std::string_view(path).substr(5, path.size() - 10))))
             continue;
         if (!yyjson_is_str(value))
             return false;
@@ -430,16 +462,25 @@ bool parse_index(std::string_view body, std::vector<Entry> &out, std::string &er
     auto *apps = yyjson_obj_get(root, "apps");
     if (!root || !yyjson_is_arr(apps) || yyjson_arr_size(apps) > 10000)
         return false;
+    // "shared" lists the apps that share a title ID with an earlier one: the older stores
+    // refuse a title ID twice, so they are kept out of "apps".
+    auto *shared = yyjson_obj_get(root, "shared");
+    if (shared && (!yyjson_is_arr(shared) || yyjson_arr_size(shared) > 10000))
+        return false;
     std::vector<Entry> entries;
     std::set<std::string> ids;
-    std::size_t index = 0, count = 0;
-    yyjson_val *value = nullptr;
-    yyjson_arr_foreach(apps, index, count, value)
+    for (auto *list : {apps, shared})
     {
-        Entry entry;
-        if (!read_entry(value, entry, false) || !ids.insert(entry.id).second)
-            return false;
-        entries.push_back(std::move(entry));
+        std::size_t index = 0, count = 0;
+        yyjson_val *value = nullptr;
+        if (list)
+            yyjson_arr_foreach(list, index, count, value)
+            {
+                Entry entry;
+                if (!read_entry(value, entry, false) || !ids.insert(entry.id).second)
+                    return false;
+                entries.push_back(std::move(entry));
+            }
     }
     out = std::move(entries);
     error.clear();
@@ -503,7 +544,9 @@ bool parse_receipt(std::string_view body, Receipt &out, std::string &error)
         !field(root, "releaseTag", candidate.release_tag, 128, true) ||
         !field(root, "sha256", candidate.digest, 64, true) ||
         !hex_bytes(candidate.digest, digest) ||
-        !field(root, "installedAt", candidate.installed_at, 40, true))
+        !field(root, "installedAt", candidate.installed_at, 40, true) ||
+        !field(root, "catalogId", candidate.catalog_id, 49) ||
+        (!candidate.catalog_id.empty() && !record_id(candidate.catalog_id)))
         return false;
     out = std::move(candidate);
     error.clear();
@@ -548,6 +591,8 @@ std::string format_receipt(const Receipt &receipt)
     member(out, "releaseTag", receipt.release_tag);
     member(out, "sha256", receipt.digest);
     member(out, "installedAt", receipt.installed_at);
+    if (!receipt.catalog_id.empty())
+        member(out, "catalogId", receipt.catalog_id);
     return out + "}\n";
 }
 
@@ -566,7 +611,9 @@ bool parse_journal(std::string_view body, Journal &out, std::string &error)
         (!candidate.content_version.empty() && !version(candidate.content_version)) ||
         !field(root, "releaseTag", candidate.release_tag, 128) ||
         !field(root, "sha256", candidate.digest, 64) ||
-        (!candidate.digest.empty() && !hex_bytes(candidate.digest, digest)))
+        (!candidate.digest.empty() && !hex_bytes(candidate.digest, digest)) ||
+        !field(root, "catalogId", candidate.catalog_id, 49) ||
+        (!candidate.catalog_id.empty() && !record_id(candidate.catalog_id)))
         return false;
     const auto &operation = candidate.operation;
     const auto &state = candidate.state;
@@ -597,6 +644,8 @@ std::string format_journal(const Journal &journal)
         member(out, "releaseTag", journal.release_tag);
     if (!journal.digest.empty())
         member(out, "sha256", journal.digest);
+    if (!journal.catalog_id.empty())
+        member(out, "catalogId", journal.catalog_id);
     return out + "}\n";
 }
 
@@ -609,18 +658,25 @@ bool parse_versions(std::string_view body, std::map<std::string, std::string> &o
     auto *apps = yyjson_obj_get(root, "apps");
     if (!root || !yyjson_is_obj(apps))
         return false;
+    auto *shared = yyjson_obj_get(root, "shared");
+    if (shared && !yyjson_is_obj(shared))
+        return false;
     std::map<std::string, std::string> versions;
-    std::size_t index = 0, count = 0;
-    yyjson_val *key = nullptr, *value = nullptr;
-    yyjson_obj_foreach(apps, index, count, key, value)
+    for (auto *list : {apps, shared})
     {
-        const std::string id(yyjson_get_str(key), yyjson_get_len(key));
-        std::string content;
-        if (!title_id(id) || !yyjson_is_obj(value) ||
-            !field(value, "content_version", content, 10) ||
-            (!content.empty() && !version(content)))
-            return false;
-        versions.emplace(id, content);
+        std::size_t index = 0, count = 0;
+        yyjson_val *key = nullptr, *value = nullptr;
+        if (list)
+            yyjson_obj_foreach(list, index, count, key, value)
+            {
+                const std::string id(yyjson_get_str(key), yyjson_get_len(key));
+                std::string content;
+                if (!record_id(id) || !yyjson_is_obj(value) ||
+                    !field(value, "content_version", content, 10) ||
+                    (!content.empty() && !version(content)))
+                    return false;
+                versions.emplace(id, content);
+            }
     }
     out = std::move(versions);
     error.clear();

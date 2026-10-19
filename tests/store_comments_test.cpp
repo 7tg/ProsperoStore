@@ -65,6 +65,9 @@ static void check_addresses()
     assert(social::index_url() == base + "v1/index.json" && data_url(social::index_url()));
     assert(social::thread_url("PPSA99008") == base + "v1/apps/PPSA99008.json");
     assert(data_url(social::thread_url("PPSA99008")));
+    assert(data_url(social::thread_url("PPSA99303-darkxex")));
+    assert(!data_url(social::thread_url("PPSA99303-Dark")) &&
+           !data_url(social::thread_url("PPSA99303-")));
     for (const char *url : {
              "https://raw.githubusercontent.com/darkxex/ps5-homebrew-catalog/main/v1/"
              "index.json",
