@@ -461,7 +461,7 @@ class Screen
     std::vector<Done> history_;
     bool panel_ = false;
     bool development_options_ = false;
-    int panel_tab_ = 1, queue_focus_ = 0, setting_focus_ = 0;
+    int panel_tab_ = 1, queue_focus_ = 0, queue_first_ = 0, setting_focus_ = 0;
     hui::tween::Spring panel_value_;
     hui::ui::TextView about_, news_view_;
     std::vector<catalog::News> news_;

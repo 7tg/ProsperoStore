@@ -57,6 +57,30 @@ const ui::FontRef &face_for(std::string_view text, const ui::FontRef &wanted,
     return wanted;
 }
 
+// A name reduced to its letters and digits, so that case, spaces and punctuation don't matter.
+std::string name_key(std::string_view text)
+{
+    std::string key;
+    for (const char letter : text)
+    {
+        const auto byte = static_cast<unsigned char>(letter);
+        if (byte >= 0x80 || std::isalnum(byte))
+            key += byte < 0x80 ? static_cast<char>(std::tolower(byte)) : letter;
+    }
+    return key;
+}
+
+// Whether the name a folder declares can be the catalog's app: equal, or one holds the other
+// ("Quake3e" and "Quake3e PS5 Port"). A name that is empty after reducing says nothing.
+bool names_agree(std::string_view declared, std::string_view listed)
+{
+    const std::string a = name_key(declared), b = name_key(listed);
+    return a.empty() || b.empty() || a.find(b) != std::string::npos ||
+           b.find(a) != std::string::npos;
+}
+
+constexpr int kQueueRows = 4; // the downloads that fit in the panel at once
+
 constexpr float kWidth = gfx::kVirtualWidth;
 constexpr float kHeight = gfx::kVirtualHeight;
 constexpr float kMargin = 96.0f;
@@ -1580,6 +1604,23 @@ void Screen::update_page(const InputFrame &input, ui::Feedback &feedback)
                           {{trs("Cancel")}, {trs("Replace"), ui::ButtonKind::primary}}},
                          feedback);
         }
+        else if (state.primary == Order::Kind::adopt && !shown.installed.empty() &&
+                 !names_agree(shown.installed.front().name, shown.name))
+        {
+            // The title ID matches but the name doesn't: it may be another app that shares the ID.
+            ask_ = Ask::adopt;
+            ask_id_ = shown.title_id;
+            dialog_.open(
+                {ui::StatusKind::question,
+                 trf("Manage {0} with ProsperoStore?", {shown.installed.front().name}),
+                 trf("{0} doesn't match {1}. We recommend Cancel to keep the contents of your "
+                     "original app from being deleted!",
+                     {shown.installed.front().name, shown.name}),
+                 {{trs("Cancel")}, {trs("Manage"), ui::ButtonKind::primary}},
+                 0,
+                 trs("Cancel")},
+                feedback);
+        }
         else if (state.primary == Order::Kind::adopt)
         {
             ask_ = Ask::adopt;
@@ -2764,7 +2805,7 @@ void Screen::finish_job(bool ok, bool restart, std::string title, std::string bo
     toasts_.push(ok          ? ui::StatusKind::success
                  : cancelled ? ui::StatusKind::info
                              : ui::StatusKind::danger,
-                 std::move(title), std::move(body), 10.0f);
+                 std::move(title), std::move(body), 3.0f);
 }
 
 Screen::Offer Screen::offer(const App &app) const
@@ -3875,6 +3916,7 @@ void Screen::open_panel(int tab)
     setting_focus_ = 0;
     panel_tab_ = std::clamp(tab, 0, 3);
     queue_focus_ = 0;
+    queue_first_ = 0;
     if (panel_tab_ == 2)
         write_about();
     if (panel_tab_ == 3 && !news_.empty() && settings_.news_seen != news_.front().id)
@@ -4016,12 +4058,15 @@ void Screen::update_panel(const InputFrame &input, ui::Feedback &feedback)
         ids.insert(ids.end(), activity_.waiting.begin(), activity_.waiting.end());
         const int count = static_cast<int>(ids.size());
         queue_focus_ = std::clamp(queue_focus_, 0, std::max(0, count - 1));
+        queue_first_ = std::clamp(queue_first_, 0, std::max(0, count - kQueueRows));
         if (step && count)
         {
             const int next = queue_focus_ + step;
             if (next < 0 || next >= count)
                 return refuse(feedback, input.nav_repeat, 0.0f, static_cast<float>(step));
             queue_focus_ = next;
+            // The window moves only when the focus leaves it, at either end.
+            queue_first_ = std::clamp(queue_first_, next - (kQueueRows - 1), next);
             feedback.play(audio::Cue::focus);
         }
         else if (input.is_pressed(Action::confirm) && count)
@@ -4351,7 +4396,11 @@ void Screen::draw_panel(const ui::Fonts &fonts, std::uint32_t glass)
             ids.push_back(activity_.id);
         ids.insert(ids.end(), activity_.waiting.begin(), activity_.waiting.end());
         float y = panel.y + 36.0f;
-        for (std::size_t i = 0; i < ids.size() && i < 4; ++i)
+        // Four rows fit; the window moves with the focus, so the rows below can be reached.
+        const int total_rows = static_cast<int>(ids.size());
+        const std::size_t first = static_cast<std::size_t>(
+            std::clamp(queue_first_, 0, std::max(0, total_rows - kQueueRows)));
+        for (std::size_t i = first; i < ids.size() && i < first + kQueueRows; ++i)
         {
             const Rect row{px - 16.0f, y, pw + 32.0f, 122.0f};
             const bool focused = static_cast<int>(i) == queue_focus_;

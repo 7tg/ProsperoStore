@@ -28,6 +28,7 @@ struct DialogContent
     std::string body;                  // wrapped; '\n' starts a new line
     std::vector<DialogButton> buttons; // one to three; an empty list gets "OK"
     int default_button = 0;            // where the focus opens (see destructive)
+    std::string highlight;             // a word of the body set in the theme's main colour
 };
 
 enum class DialogButtons : std::uint8_t

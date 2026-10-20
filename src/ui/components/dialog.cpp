@@ -329,8 +329,27 @@ void Dialog::draw(Canvas &canvas) const
     {
         const float top =
             panel.y + at.body_top + static_cast<float>(i) * style.body_size * style.body_line;
-        paint.body(at.body[i], text_x, top + style.body_size * 0.95f, style.body_size,
-                   theme.text_muted, align);
+        const float baseline = top + style.body_size * 0.95f;
+        const std::string &line = at.body[i];
+        const std::size_t mark =
+            content_.highlight.empty() ? std::string::npos : line.find(content_.highlight);
+        if (mark == std::string::npos)
+        {
+            paint.body(line, text_x, baseline, style.body_size, theme.text_muted, align);
+            continue;
+        }
+        // The word in the main colour, the rest as the body: three runs set one after another.
+        const std::string before = line.substr(0, mark);
+        const std::string after = line.substr(mark + content_.highlight.size());
+        float x = align == gfx::Align::center
+                      ? text_x - paint.body_width(line, style.body_size) * 0.5f
+                      : text_x;
+        paint.body(before, x, baseline, style.body_size, theme.text_muted, gfx::Align::left);
+        x += paint.body_width(before, style.body_size);
+        paint.body(content_.highlight, x, baseline, style.body_size, theme.primary,
+                   gfx::Align::left);
+        x += paint.body_width(content_.highlight, style.body_size);
+        paint.body(after, x, baseline, style.body_size, theme.text_muted, gfx::Align::left);
     }
 
     // A destructive answer is the same button in a theme whose main colour

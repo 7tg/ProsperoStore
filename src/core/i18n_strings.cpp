@@ -1140,6 +1140,19 @@ const Row kStrings[] = {
       "Estão na discussão do app no GitHub.", "GitHubのアプリのディスカッションにあります。",
       "Sie stehen in der Diskussion der App auf GitHub.",
       "Ze staan in de discussie van de app op GitHub."}},
+    {{"{0} doesn't match {1}. We recommend Cancel to keep the contents of your original app "
+      "from being deleted!",
+      "¡¡{0} no coincide con {1}, te recomendamos Cancelar para prevenir que se borre el "
+      "contenido de tu aplicación original!!",
+      "{0} ne correspond pas à {1}. Nous recommandons Annuler pour éviter que le contenu de "
+      "votre application d'origine soit supprimé !",
+      "{0} não corresponde a {1}. Recomendamos Cancelar para evitar que o conteúdo do seu "
+      "aplicativo original seja apagado!",
+      "{0}は{1}と一致しません。元のアプリの内容が削除されないよう、キャンセルをおすすめします!",
+      "{0} stimmt nicht mit {1} überein. Wir empfehlen Abbrechen, damit der Inhalt Ihrer "
+      "ursprünglichen App nicht gelöscht wird!",
+      "{0} komt niet overeen met {1}. We raden Annuleren aan, zodat de inhoud van je "
+      "oorspronkelijke app niet wordt verwijderd!"}},
     {{"This app can get full access to the console, usually to read and write files outside its "
       "own folder. Install it only if you trust its developer.",
       "Esta app puede obtener acceso total a la consola, normalmente para leer y escribir archivos "
