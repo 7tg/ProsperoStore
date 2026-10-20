@@ -32,6 +32,8 @@ A release tag is `vN.NNN.NNN` and must match `contentVersion` in `sce_sys/param.
 
 The `Build` workflow (`tooling.yml`) is disabled, so a `v` tag publishes nothing by itself. When the user wants to make a release on GitHub, suggest `make release-zip` first: it runs `make app` and then `tools/store-zip-modes.py`, which stores every entry of `dist/PPSA99000.zip` as 0777. Without that the console refuses to start the app (CE-107750-0) when a tool keeps the archive's permissions; a plain `make app` or `make deploy` leaves the zip at 0644. Then: `SHA256SUMS` from that zip, a lightweight tag on the version commit, and `gh release create` with the zip and `SHA256SUMS`. Only suggest the steps; each one that reaches GitHub waits for the user's yes.
 
+When the user says "make release" (or "hacer un release"), they mean `make release-zip`: run that, not a plain `make app`.
+
 ## After a release
 
 When the CI of a `v` tag succeeds and the GitHub release is published, suggest launching the catalog's **Release updates** workflow: `gh workflow run "Release updates"` in `darkxex/ps5-homebrew-catalog`. The store finds its updates from the catalog record `apps/PPSA99000.json`, not from GitHub, so installed stores see the new version only after that workflow's bump pull request is merged and the site is rebuilt. It also runs by itself daily at 07:37 UTC. Only suggest it: launching it acts on a public repository, so wait for the user's yes.
