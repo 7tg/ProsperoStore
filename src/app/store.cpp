@@ -79,7 +79,8 @@ bool names_agree(std::string_view declared, std::string_view listed)
            b.find(a) != std::string::npos;
 }
 
-constexpr int kQueueRows = 4; // the downloads that fit in the panel at once
+constexpr int kQueueRows = 4;         // the downloads that fit in the panel at once
+constexpr float kToastSeconds = 3.0f; // no toast stays longer than this
 
 constexpr float kWidth = gfx::kVirtualWidth;
 constexpr float kHeight = gfx::kVirtualHeight;
@@ -352,13 +353,13 @@ Screen::Screen() : theme_(farlight_theme())
     news_view_.set_bounds({636.0f, 212.0f, 1150.0f, 708.0f});
     toasts_.style.theme = theme_;
     toasts_.style.frosted = true;
-    toasts_.style.duration = 10.0f;
+    toasts_.style.duration = kToastSeconds;
     plate_.snap(1.0f);
 }
 
 void Screen::notify(std::string title, std::string body)
 {
-    toasts_.push(ui::StatusKind::info, std::move(title), std::move(body), 10.0f);
+    toasts_.push(ui::StatusKind::info, std::move(title), std::move(body), kToastSeconds);
 }
 
 void Screen::set_setup_notes(std::vector<std::string> notes)
@@ -372,7 +373,7 @@ void Screen::set_setup_notes(std::vector<std::string> notes)
                  more == 0 ? trs("Press Options and open About to see what the store found.")
                            : trf("{0} things to check: press Options and open About.",
                                  {std::to_string(setup_notes_.size())}),
-                 12.0f);
+                 kToastSeconds);
 }
 
 void Screen::offer_store_update(std::string version)
@@ -1359,7 +1360,7 @@ void Screen::update_home(const InputFrame &input, ui::Feedback &feedback)
             update_all_.push_back(apps_[index].title_id);
         toasts_.push(ui::StatusKind::info,
                      trn(update_all_.size(), "Updating {0} app", "Updating {0} apps"),
-                     trs("Apps that are running are skipped."), 6.0f);
+                     trs("Apps that are running are skipped."), kToastSeconds);
         feedback.play(audio::Cue::select);
         return;
     }
@@ -2817,7 +2818,7 @@ void Screen::finish_job(bool ok, bool restart, std::string title, std::string bo
     toasts_.push(ok          ? ui::StatusKind::success
                  : cancelled ? ui::StatusKind::info
                              : ui::StatusKind::danger,
-                 std::move(title), std::move(body), 3.0f);
+                 std::move(title), std::move(body), kToastSeconds);
 }
 
 Screen::Offer Screen::offer(const App &app) const
