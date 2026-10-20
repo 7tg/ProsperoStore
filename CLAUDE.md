@@ -2,7 +2,7 @@
 
 ## Git
 
-- Commit and push straight to `main`. No branches or pull requests.
+- Work on `main`, no branches or pull requests. Commit there, but do not push unless the user asks; suggest the push when a change is ready.
 - Never add Claude as a collaborator: no `Co-Authored-By` trailer, no "Generated with Claude" line, in commits, tags, or PR text.
 
 ## Verifying a change
