@@ -3773,6 +3773,10 @@ std::vector<std::string> Settings::catalog_urls() const
 Settings parse_settings(std::string_view text)
 {
     Settings settings;
+    // The official catalog's own repository is the Official catalog switch, never a
+    // custom catalog: the same rule Screen::add_catalog applies.
+    const std::string official_repo =
+        catalog::github_catalog_of(std::string(catalog::kApiMirror) + "api/v1/");
     while (!text.empty())
     {
         const auto end = text.find('\n');
@@ -3803,7 +3807,8 @@ Settings parse_settings(std::string_view text)
                                    ? catalog::github_catalog(value, name)
                                    : catalog::normalize_api(value, url) &&
                                          !(name = catalog::github_catalog_of(url)).empty();
-            if (known && settings.catalogs.size() < Settings::kMaxCatalogs &&
+            if (known && name != official_repo &&
+                settings.catalogs.size() < Settings::kMaxCatalogs &&
                 std::find(settings.catalogs.begin(), settings.catalogs.end(), name) ==
                     settings.catalogs.end())
                 settings.catalogs.push_back(name);
