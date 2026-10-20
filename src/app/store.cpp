@@ -4119,7 +4119,7 @@ void Screen::write_about()
             "OpenSSL, zlib, miniz, Monocypher, yyjson, PicoSHA2, QR Code generator and stb. "
             "Fonts: Inter, Montserrat and DejaVu Sans Mono.")));
     blocks.push_back(Block::paragraph(
-        trs("Brought to you by BlackBearReloaded. Free software under the GPL, version 3 or "
+        trs("Brought to you by AngelXex. Free software under the GPL, version 3 or "
             "later.")));
     about_.set_content(std::move(blocks));
     about_.scroll_to(0, true);
@@ -4804,8 +4804,7 @@ void Screen::draw_panel(const ui::Fonts &fonts, std::uint32_t glass)
                  px + 152.0f + words, panel.y + 136.0f, 22, kAccent);
         words = ui::text(list, fonts.regular, tr("Brought to you by "), px + 152.0f,
                          panel.y + 168.0f, 22, kInk.with_alpha(0.62f));
-        ui::text(list, fonts.semibold, "BlackBearReloaded", px + 152.0f + words, panel.y + 168.0f,
-                 22, kInk);
+        ui::text(list, fonts.semibold, "AngelXex", px + 152.0f + words, panel.y + 168.0f, 22, kInk);
         if (!self_version_.empty())
         {
             const std::string version = trf("Version {0}", {self_version_});
