@@ -80,7 +80,7 @@ bool names_agree(std::string_view declared, std::string_view listed)
 }
 
 constexpr int kQueueRows = 4;         // the downloads that fit in the panel at once
-constexpr float kToastSeconds = 3.0f; // no toast stays longer than this
+constexpr float kToastSeconds = 2.0f; // no toast stays longer than this
 
 constexpr float kWidth = gfx::kVirtualWidth;
 constexpr float kHeight = gfx::kVirtualHeight;
